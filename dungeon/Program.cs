@@ -16,13 +16,8 @@ namespace dungeon
 			using (Window win = new Window(new IVector2(1024, 768)))
 			{
 				DungeonFactory dungeonFactory = new DungeonFactory();
-				dungeonFactory.SetSize(new IVector3(5, 5, 5));
 
-<<<<<<< HEAD
-			DungeonFactory dungeonFactory = new DungeonFactory();
-=======
 				Dungeon dungeon = dungeonFactory.Generate();
->>>>>>> 5851a39c1306e21a93ea187391516d2110858371
 
 				MeshFactory meshFactory = new MeshFactory();
 				meshFactory.RenderDungeon(dungeon);

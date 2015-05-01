@@ -56,6 +56,7 @@
     <Compile Include="Dungeon.cs" />
     <Compile Include="Generator\Digger.cs" />
     <Compile Include="Generator\DungeonFactory.cs" />
+    <Compile Include="Generator\DungeonTree.cs" />
     <Compile Include="Math\IVector.cs" />
     <Compile Include="Math\Math.cs" />
     <Compile Include="Program.cs" />

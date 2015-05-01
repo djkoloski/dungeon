@@ -13,73 +13,68 @@ namespace dungeon.Generator
 
 		public class Iterator
 		{
-			private object current;
+			private List<object> queue_;
 
 			public bool Done
 			{
 				get
 				{
-					return current == null;
+					return queue_.Count == 0;
+				}
+			}
+			private object Current
+			{
+				get
+				{
+					return queue_[0];
 				}
 			}
 			public bool IsNode
 			{
 				get
 				{
-					return !Done && current is DungeonTreeNode;
+					return !Done && Current is DungeonTreeNode;
 				}
 			}
 			public DungeonTreeNode Node
 			{
 				get
 				{
-					return (DungeonTreeNode)current;
+					return (DungeonTreeNode)Current;
 				}
 			}
 			public bool IsEdge
 			{
 				get
 				{
-					return !Done && current is DungeonTreeEdge;
+					return !Done && Current is DungeonTreeEdge;
 				}
 			}
 			public DungeonTreeEdge Edge
 			{
 				get
 				{
-					return (DungeonTreeEdge)current;
+					return (DungeonTreeEdge)Current;
 				}
 			}
 
 			public Iterator(DungeonTreeNode root)
 			{
-				current = root;
+				queue_.Add(root);
 			}
 
-			// Precondition: on a node
-			private void MoveUp()
+			public void Next()
 			{
-				DungeonTreeNode node = Node;
-				if (node.parent == null)
-					current = null;
+				queue_.RemoveAt(0);
 
-				DungeonTreeEdge edge = node.parent;
-				DungeonTreeNode parent = edge.from;
-
-				int index = parent.children.IndexOf(edge) + 1;
-				if (index >= parent.children.Count)
-					MoveUp();
-				else
-					current = parent.children[index];
-			}
-			public bool Next()
-			{
 				if (IsNode)
-					MoveUp();
+				{
+					DungeonTreeNode node = Node;
+					foreach (DungeonTreeEdge edge in node.children)
+						queue_.Add(edge);
+				}
 				else
-					current = Edge.to;
-
-				return current != null;
+					queue_.Add(Edge.to);
 			}
 		}
 
@@ -107,7 +102,7 @@ namespace dungeon.Generator
 			// Check that the two nodes already exist
 			if (!nodes_.ContainsKey(from) || !nodes_.ContainsKey(to))
 				throw new System.InvalidOperationException("Attempted to create a dungeon tree edge between nodes that do not exist");
-			
+
 			DungeonTreeNode fromNode = nodes_[from];
 			DungeonTreeNode toNode = nodes_[to];
 			// Check if that edge already exists
