@@ -18,6 +18,7 @@ namespace dungeon
 		public Dungeon()
 		{
 			tiles = new Dictionary<IVector3,Tile>();
+			joints = new List<HashSet<IVector3>>();
 		}
 
 		public Tile Get(IVector3 v)

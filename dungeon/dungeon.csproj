@@ -54,7 +54,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Dungeon.cs" />
-    <Compile Include="Generator\CorridorDigger.cs" />
     <Compile Include="Generator\Digger.cs" />
     <Compile Include="Generator\DungeonFactory.cs" />
     <Compile Include="Math\IVector.cs" />

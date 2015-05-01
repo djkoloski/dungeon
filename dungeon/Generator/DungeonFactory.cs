@@ -10,7 +10,6 @@ namespace dungeon.Generator
 {
 	public class DungeonFactory
 	{
-		private List<ComponentConstraint> constraints_;
 		private IVector3 size_;
 
 		public DungeonFactory()
@@ -27,11 +26,13 @@ namespace dungeon.Generator
 		{
 			Dungeon dungeon = new Dungeon();
 
-			for (int i = 0; i < constraints_.Count; ++i)
+			IVector3 lastPosition = IVector3.zero;
+			for (int i = 0; i < 20; ++i)
 			{
-				Digger digger = new Digger(dungeon, 20, start, Direction.Right, i);
+				Digger digger = new Digger(dungeon, -1, lastPosition, 20);
 				while (digger.Step())
 				{ }
+				lastPosition = digger.GetPosition();
 			}
 
 			return dungeon;
