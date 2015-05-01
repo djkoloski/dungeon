@@ -8,34 +8,32 @@ using Pb.Collections;
 
 namespace dungeon.Generator
 {
-	public class DungeonFactory
-	{
-		private IVector3 size_;
+    public class DungeonFactory
+    {
+        IVector3 startingPosition = IVector3.zero;
 
-		public DungeonFactory()
-		{
-			size_ = IVector3.zero;
-		}
+        public DungeonFactory(Tree tree)
+        {
+        }
 
-		public void SetSize(IVector3 size)
-		{
-			size_ = size;
-		}
+        public Dungeon Generate()
+        {
+            Dungeon dungeon = new Dungeon();
 
-		public Dungeon Generate()
-		{
-			Dungeon dungeon = new Dungeon();
+            Queue<String> roomsToMake = new Queue<String>();
+            roomsToMake.Enqueue(head);
+            while (roomsToMake.Any())
+            {
+                String cur = roomsToMake.Dequeue();
+                //Send out each child digger
+                IVector3 availableJoint = dungeon.getRandomJoint(cur);
+                Digger digger = new Digger(dungeon, -1, availableJoint, lengthToRoom);
+                //Have the digger dig out to the room and make the room
+                //Add all of the children of the room to the queue of things to make
+                //Set each one to start from one of the joints of the father component
+            }
 
-			IVector3 lastPosition = IVector3.zero;
-			for (int i = 0; i < 20; ++i)
-			{
-				Digger digger = new Digger(dungeon, -1, lastPosition, 20);
-				while (digger.Step())
-				{ }
-				lastPosition = digger.GetPosition();
-			}
-
-			return dungeon;
-		}
-	}
+            return dungeon;
+        }
+    }
 }
