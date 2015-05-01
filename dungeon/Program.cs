@@ -13,22 +13,22 @@ namespace dungeon
 	{
 		static void Main(string[] args)
 		{
-			Window win = new Window(new IVector2(1024, 768));
+			using (Window win = new Window(new IVector2(1024, 768)))
+			{
+				DungeonFactory dungeonFactory = new DungeonFactory();
+				dungeonFactory.SetSize(new IVector3(5, 5, 5));
 
-			DungeonFactory dungeonFactory = new DungeonFactory();
-			dungeonFactory.SetSize(new IVector3(5, 5, 5));
+				Dungeon dungeon = dungeonFactory.Generate();
 
-			Dungeon dungeon = dungeonFactory.Generate();
+				MeshFactory meshFactory = new MeshFactory();
+				meshFactory.RenderDungeon(dungeon);
 
-			MeshFactory meshFactory = new MeshFactory();
-			meshFactory.RenderDungeon(dungeon);
+				Mesh mesh = meshFactory.Build();
 
-			Mesh mesh = meshFactory.Build();
+				win.Init(mesh);
 
-			win.mesh = mesh;
-
-			win.Run();
-			win.Dispose();
+				win.Run();
+			}
 		}
 	}
 }
