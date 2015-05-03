@@ -44,6 +44,7 @@ namespace dungeon.Generator
                     manifest.dungeon.tiles[location] = new Tile(room);
                     for (int dir = Direction.Begin; dir < Direction.End; dir++)
                     {
+                        manifest.dungeon.tiles[location + Direction.Vector[dir]] = new Tile(room);
                         AddJointIfPossible(manifest, room, new Joint(location, dir, 0));
                     }
                     return;
@@ -55,7 +56,11 @@ namespace dungeon.Generator
             switch (room.type)
             {
                 default:
-                    return !manifest.dungeon.tiles.ContainsKey(location);
+                    bool fits = true;
+
+                    for (int dir = Direction.Begin; dir < Direction.End; dir++)
+                        fits = fits && !manifest.dungeon.tiles.ContainsKey(location + Direction.Vector[dir]);
+                    return fits && !manifest.dungeon.tiles.ContainsKey(location);
             }
         }
 
@@ -76,7 +81,8 @@ namespace dungeon.Generator
             {
                 return null;
             }
-            manifest.dungeon.tiles[joint.GetExitLocation()] = new Tile(edge);
+            manifest.dungeon.tiles[joint.location + Direction.Vector[joint.direction]] = new Tile(edge);
+            manifest.dungeon.tiles[joint.location + Direction.Vector[joint.direction] * 2] = new Tile(edge);
             WeightedRandomList<Joint> newJoints = new WeightedRandomList<Joint>();
             //Add the immediate exit spot, then (FOR NOW) add exit joints to all its neighbors
             for (int i = 0; i < 6; i++)
@@ -86,7 +92,7 @@ namespace dungeon.Generator
                 if (AddJointIfPossible(manifest, edge.from, newJoint))
                 {
                     if (i == joint.direction && i % 3 != 1)
-                        newJoints.Add(newJoint, 30);//LMFAO WORST HACK EVER HOLD UP
+                        newJoints.Add(newJoint, 30);
                     else
                         newJoints.Add(newJoint, 1);
                 }
