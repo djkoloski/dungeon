@@ -6,139 +6,175 @@ using System.Threading.Tasks;
 
 namespace dungeon.Generator
 {
-	public class DungeonTree
-	{
-		private DungeonTreeNode root_;
-		private Dictionary<string, DungeonTreeNode> nodes_;
+    public class DungeonTree
+    {
+        public DungeonTreeNode root_;
+        private Dictionary<string, DungeonTreeNode> nodes_ = new Dictionary<string, DungeonTreeNode>();
 
-		public class Iterator
-		{
-			private List<object> queue_;
+        public class Iterator
+        {
+            private Queue<object> queue_ = new Queue<object>();
 
-			public bool Done
-			{
-				get
-				{
-					return queue_.Count == 0;
-				}
-			}
-			private object Current
-			{
-				get
-				{
-					return queue_[0];
-				}
-			}
-			public bool IsNode
-			{
-				get
-				{
-					return !Done && Current is DungeonTreeNode;
-				}
-			}
-			public DungeonTreeNode Node
-			{
-				get
-				{
-					return (DungeonTreeNode)Current;
-				}
-			}
-			public bool IsEdge
-			{
-				get
-				{
-					return !Done && Current is DungeonTreeEdge;
-				}
-			}
-			public DungeonTreeEdge Edge
-			{
-				get
-				{
-					return (DungeonTreeEdge)Current;
-				}
-			}
+            public bool Done
+            {
+                get
+                {
+                    return !queue_.Any();
+                }
+            }
+            private object Current
+            {
+                get
+                {
+                    return queue_.Peek();
+                }
+            }
+            public bool IsNode
+            {
+                get
+                {
+                    return !Done && Current is DungeonTreeNode;
+                }
+            }
+            public DungeonTreeNode Node
+            {
+                get
+                {
+                    return (DungeonTreeNode)Current;
+                }
+            }
+            public DungeonTreeEdge Edge
+            {
+                get
+                {
+                    return (DungeonTreeEdge)Current;
+                }
+            }
 
-			public Iterator(DungeonTreeNode root)
-			{
-				queue_.Add(root);
-			}
+            public Iterator(DungeonTreeNode root)
+            {
+                queue_.Enqueue(root);
+            }
 
-			public void Next()
-			{
-				queue_.RemoveAt(0);
+            public void Next()
+            {
+                if (IsNode)
+                {
+                    DungeonTreeNode node = Node;
+                    foreach (DungeonTreeEdge edge in node.children)
+                    {
+                        queue_.Enqueue(edge);
+                        queue_.Enqueue(edge.to);
+                    }
+                }
+                queue_.Dequeue();
+            }
+        }
 
-				if (IsNode)
-				{
-					DungeonTreeNode node = Node;
-					foreach (DungeonTreeEdge edge in node.children)
-						queue_.Add(edge);
-				}
-				else
-					queue_.Add(Edge.to);
-			}
-		}
+        public System.Collections.IEnumerable GetNodes()
+        {
+            Iterator iter = Begin();
+            while (!iter.Done)
+            {
+                if (iter.IsNode)
+                {
+                    yield return iter.Node;
+                }
+                iter.Next();
+            }
+        }
 
-		public Iterator Begin()
-		{
-			return new Iterator(root_);
-		}
+        public System.Collections.IEnumerable GetEdges()
+        {
+            Iterator iter = Begin();
+            while (!iter.Done)
+            {
+                if (!iter.IsNode)
+                {
+                    yield return iter.Edge;
+                }
+                iter.Next();
+            }
+        }
 
-		// TODO add more parameters to customize the node
-		public void AddNode(string name)
-		{
-			if (nodes_.ContainsKey(name))
-				throw new System.InvalidOperationException("Attempted to add dungeon tree node that already existed");
+        public Iterator Begin()
+        {
+            return new Iterator(root_);
+        }
 
-			DungeonTreeNode node = new DungeonTreeNode(name);
+        // TODO add more parameters to customize the node
+        public void AddNode(string name)
+        {
+            if (nodes_.ContainsKey(name))
+                throw new System.InvalidOperationException("Attempted to add dungeon tree node that already existed");
 
-			if (root_ == null)
-				root_ = node;
+            DungeonTreeNode node = new DungeonTreeNode(name);
 
-			nodes_[name] = node;
-		}
-		// TODO add more parameters to customize the edge
-		public void AddEdge(string from, string to)
-		{
-			// Check that the two nodes already exist
-			if (!nodes_.ContainsKey(from) || !nodes_.ContainsKey(to))
-				throw new System.InvalidOperationException("Attempted to create a dungeon tree edge between nodes that do not exist");
+            if (root_ == null)
+                root_ = node;
 
-			DungeonTreeNode fromNode = nodes_[from];
-			DungeonTreeNode toNode = nodes_[to];
-			// Check if that edge already exists
-			foreach (DungeonTreeEdge edge in fromNode.children)
-				if (edge.to == toNode)
-					throw new System.InvalidOperationException("Attempted to create a dungeon tree edge between nodes that are already connected");
+            nodes_[name] = node;
+        }
+        // TODO add more parameters to customize the edge
+        public void AddEdge(string from, string to)
+        {
+            // Check that the two nodes already exist
+            if (!nodes_.ContainsKey(from) || !nodes_.ContainsKey(to))
+                throw new System.InvalidOperationException("Attempted to create a dungeon tree edge between nodes that do not exist");
 
-			fromNode.children.Add(new DungeonTreeEdge(fromNode, toNode));
-		}
-	}
+            DungeonTreeNode fromNode = nodes_[from];
+            DungeonTreeNode toNode = nodes_[to];
+            // Check if that edge already exists
+            foreach (DungeonTreeEdge edge in fromNode.children)
+                if (edge.to == toNode)
+                    throw new System.InvalidOperationException("Attempted to create a dungeon tree edge between nodes that are already connected");
 
-	public class DungeonTreeNode
-	{
-		public string name;
+            fromNode.children.Add(new DungeonTreeEdge(fromNode, toNode));
+        }
+    }
 
-		public DungeonTreeEdge parent;
-		public List<DungeonTreeEdge> children;
+    public enum NodeType
+    {
+        BigRoom
+    }
 
-		public DungeonTreeNode(string name_)
-		{
-			name = name_;
+    public class DungeonTreeNode
+    {
+        public NodeType type;
+        public string name;
 
-			parent = null;
-			children = new List<DungeonTreeEdge>();
-		}
-	}
+        public DungeonTreeEdge parent;
+        public List<DungeonTreeEdge> children;
 
-	public class DungeonTreeEdge
-	{
-		public DungeonTreeNode from;
-		public DungeonTreeNode to;
+        public DungeonTreeNode(string name_)
+        {
+            name = name_;
 
-		public DungeonTreeEdge(DungeonTreeNode from_, DungeonTreeNode to_)
-		{
-			from = from_;
-			to = to_;
-		}
-	}
+            parent = null;
+            children = new List<DungeonTreeEdge>();
+        }
+
+        public override string ToString()
+        {
+            return "Node(" + name + ")";
+        }
+    }
+
+    public class DungeonTreeEdge
+    {
+        public DungeonTreeNode from;
+        public DungeonTreeNode to;
+        public int minDist = 100;
+
+        public DungeonTreeEdge(DungeonTreeNode from_, DungeonTreeNode to_)
+        {
+            from = from_;
+            to = to_;
+        }
+
+        public override string ToString()
+        {
+            return "Edge(" + from.name + "," + to.name + ")";
+        }
+    }
 }

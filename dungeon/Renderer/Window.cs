@@ -115,7 +115,7 @@ namespace dungeon.Renderer
 
 			float moveDelta = 20.0f * delta;
 			// Move the camera around
-			if (state[OpenTK.Input.Key.Q])
+            if (state[OpenTK.Input.Key.Q])
 				eyePos_ -= eyeUp_ * moveDelta;
 			if (state[OpenTK.Input.Key.W])
 				eyePos_ += eyeForward_ * moveDelta;

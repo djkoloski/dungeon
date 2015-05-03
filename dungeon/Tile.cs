@@ -6,15 +6,13 @@ using System.Threading.Tasks;
 
 namespace dungeon
 {
-	public class Tile
-	{
-		public bool open;
-		public int component;
+    public class Tile
+    {
+        public object component;
 
-		public Tile()
-		{
-			open = false;
-			component = -1;
-		}
-	}
+        public Tile(object component)
+        {
+            this.component = component;
+        }
+    }
 }

@@ -9,25 +9,35 @@ using dungeon.Renderer;
 
 namespace dungeon
 {
-	class Program
-	{
-		static void Main(string[] args)
-		{
-			using (Window win = new Window(new IVector2(1024, 768)))
-			{
-				DungeonFactory dungeonFactory = new DungeonFactory();
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            using (Window win = new Window(new IVector2(1024, 768)))
+            {
+                DungeonTree tree = new DungeonTree();
+                for (int i = 1; i <= 1000; i++)
+                {
+                    tree.AddNode("c" + i);
+                    if (i > 2)
+                    {
+                        tree.AddEdge("c" + i / 3, "c" + i);
+                    }
+                }
 
-				Dungeon dungeon = dungeonFactory.Generate();
+                DungeonFactory dungeonFactory = new DungeonFactory(tree);
 
-				MeshFactory meshFactory = new MeshFactory();
-				meshFactory.RenderDungeon(dungeon);
+                Dungeon dungeon = dungeonFactory.Generate();
 
-				Mesh mesh = meshFactory.Build();
+                MeshFactory meshFactory = new MeshFactory();
+                meshFactory.RenderDungeon(dungeon);
 
-				win.Init(mesh);
+                Mesh mesh = meshFactory.Build();
 
-				win.Run();
-			}
-		}
-	}
+                win.Init(mesh);
+
+                win.Run();
+            }
+        }
+    }
 }

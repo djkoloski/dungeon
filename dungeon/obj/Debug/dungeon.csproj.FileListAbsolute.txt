@@ -11,8 +11,7 @@ C:\Users\David\Academics\Spring 2015\Advanced Computer Graphics\dungeon\dungeon\
 C:\Users\David\Academics\Spring 2015\Advanced Computer Graphics\dungeon\dungeon\obj\Debug\dungeon.exe
 C:\Users\David\Academics\Spring 2015\Advanced Computer Graphics\dungeon\dungeon\obj\Debug\dungeon.pdb
 C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\bin\Debug\dungeon.exe.config
-C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\obj\Debug\dungeon.exe
-C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\obj\Debug\dungeon.pdb
+C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\obj\Debug\dungeon.csprojResolveAssemblyReference.cache
 C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\bin\Debug\dungeon.exe
 C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\bin\Debug\dungeon.pdb
 C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\bin\Debug\OpenTK.Compatibility.dll
@@ -21,4 +20,5 @@ C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\bin\Debug\
 C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\bin\Debug\OpenTK.pdb
 C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\bin\Debug\OpenTK.xml
 C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\bin\Debug\OpenTK.GLControl.xml
-C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\obj\Debug\dungeon.csprojResolveAssemblyReference.cache
+C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\obj\Debug\dungeon.exe
+C:\Users\Dwight\Documents\Visual Studio 2013\Projects\dungeon\dungeon\obj\Debug\dungeon.pdb

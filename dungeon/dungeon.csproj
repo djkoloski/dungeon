@@ -54,9 +54,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Dungeon.cs" />
-    <Compile Include="Generator\Digger.cs" />
     <Compile Include="Generator\DungeonFactory.cs" />
     <Compile Include="Generator\DungeonTree.cs" />
+    <Compile Include="Generator\Joint.cs" />
     <Compile Include="Math\IVector.cs" />
     <Compile Include="Math\Math.cs" />
     <Compile Include="Program.cs" />
@@ -68,6 +68,7 @@
     <Compile Include="Renderer\MeshFactory.cs" />
     <Compile Include="Renderer\Shader.cs" />
     <Compile Include="Tile.cs" />
+    <Compile Include="Util\WeightedRandomList.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
