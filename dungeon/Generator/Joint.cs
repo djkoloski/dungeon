@@ -48,12 +48,7 @@ namespace dungeon.Generator
 
         public IVector3 GetExitLocation()
         {
-            return location + Direction.Vector[direction] * 2;
-        }
-
-        public Joint getOpposite()
-        {
-            return new Joint(GetExitLocation(), (direction + 3) % 6, distanceFromSource);
+            return location + Direction.Vector[direction];
         }
     }
 }

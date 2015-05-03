@@ -164,7 +164,7 @@ namespace dungeon.Generator
     {
         public DungeonTreeNode from;
         public DungeonTreeNode to;
-        public int minDist = 100;
+        public static readonly int MIN_DEPTH = 10;
 
         public DungeonTreeEdge(DungeonTreeNode from_, DungeonTreeNode to_)
         {

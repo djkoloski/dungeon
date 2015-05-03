@@ -11,6 +11,7 @@ namespace dungeon.Generator
 {
     public class DungeonFactory
     {
+        private static readonly int MIN_HALLWAY_SPACING = 1;
         DungeonTree tree;
 
         public DungeonFactory(DungeonTree tree_)
@@ -25,7 +26,7 @@ namespace dungeon.Generator
             if (tree.Begin().Done)
                 return manifest.dungeon;//Quit on empty trees
 
-            DigRoom(manifest, tree.root_, IVector3.zero);
+            DigRoomIfPossible(manifest, tree.root_, IVector3.zero);
 
             foreach (DungeonTreeEdge edge in tree.GetEdges())
             {
@@ -36,37 +37,28 @@ namespace dungeon.Generator
         }
 
 
-        private void DigRoom(DungeonManifest manifest, DungeonTreeNode room, IVector3 location)
+        private void DigRoomIfPossible(DungeonManifest manifest, DungeonTreeNode room, Joint joint)
         {
             switch (room.type)
             {
                 default:
-                    manifest.dungeon.tiles[location] = new Tile(room);
-                    for (int dir = Direction.Begin; dir < Direction.End; dir++)
-                    {
-                        manifest.dungeon.tiles[location + Direction.Vector[dir]] = new Tile(room);
-                        AddJointIfPossible(manifest, room, new Joint(location, dir, 0));
-                    }
+                    if (manifest.dungeon.tiles.ContainsKey(joint.location))
+                        return;
+                    manifest.dungeon.tiles[joint.location] = new Tile(room);
+                    for (int i = 0; i < 6; i++)
+                        manifest.joints[room].Add(new Joint(joint.location, i, 0));
                     return;
             }
         }
 
-        private bool CanDigRoom(DungeonManifest manifest, DungeonTreeNode room, IVector3 location)
+        private void PlaceBlockIfPossible(DungeonManifest manifest, Joint joint, IVector3 blockSize)
         {
-            switch (room.type)
-            {
-                default:
-                    bool fits = true;
-
-                    for (int dir = Direction.Begin; dir < Direction.End; dir++)
-                        fits = fits && !manifest.dungeon.tiles.ContainsKey(location + Direction.Vector[dir]);
-                    return fits && !manifest.dungeon.tiles.ContainsKey(location);
-            }
+            
         }
 
         private bool AddJointIfPossible(DungeonManifest manifest, DungeonTreeNode room, Joint joint)
         {
-            if (!manifest.dungeon.tiles.ContainsKey(joint.GetExitLocation()))
+            if (CanDig(manifest.dungeon.tiles, joint))
             {
                 manifest.joints[room].Add(joint);
                 return true;
@@ -77,12 +69,11 @@ namespace dungeon.Generator
         private Joint DigHallwayFrom(DungeonManifest manifest, Joint joint, DungeonTreeEdge edge)
         {
             manifest.joints[edge.from].Remove(joint);
-            if (manifest.dungeon.tiles.ContainsKey(joint.GetExitLocation()))
+            if (!CanDig(manifest.dungeon.tiles, joint))
             {
                 return null;
             }
             manifest.dungeon.tiles[joint.location + Direction.Vector[joint.direction]] = new Tile(edge);
-            manifest.dungeon.tiles[joint.location + Direction.Vector[joint.direction] * 2] = new Tile(edge);
             WeightedRandomList<Joint> newJoints = new WeightedRandomList<Joint>();
             //Add the immediate exit spot, then (FOR NOW) add exit joints to all its neighbors
             for (int i = 0; i < 6; i++)
@@ -106,24 +97,19 @@ namespace dungeon.Generator
 
         private void DigEdge(DungeonManifest manifest, DungeonTreeEdge edge)
         {
+            //TODO: Deal with failure
             Joint joint = getAvailableJoint(manifest, edge);
             while (joint != null)
             {
-                if (joint.distanceFromSource > edge.minDist)
+                if (joint.distanceFromSource > DungeonTreeEdge.MIN_DEPTH)
                 {
-                    if (CanDigRoom(manifest, edge.to, joint.GetExitLocation()))
-                    {
-                        DigRoom(manifest, edge.to, joint.GetExitLocation());
-                        break;
-                    }
+                    DigRoomIfPossible(manifest, edge.to, joint.GetExitLocation());
+                    break;
                 }
                 joint = DigHallwayFrom(manifest, joint, edge);
                 if (joint == null)
-                {
                     joint = getAvailableJoint(manifest, edge);
-                }
             }
-            System.Console.WriteLine("Done digging " + edge);
         }
 
         private Joint getAvailableJoint(DungeonManifest manifest, DungeonTreeEdge edge)
@@ -136,6 +122,15 @@ namespace dungeon.Generator
                 return ret;
             }
             return null;
+        }
+
+        private bool CanDig(Dictionary<IVector3, Tile> tiles, Joint joint)
+        {
+            for (int i = -MIN_HALLWAY_SPACING; i <= MIN_HALLWAY_SPACING; i++)
+                for (int j = -MIN_HALLWAY_SPACING; j <= MIN_HALLWAY_SPACING; j++)
+                    if (tiles.ContainsKey(joint.GetExitLocation() + Direction.Tangent[joint.direction] * i + Direction.Bitangent[joint.direction] * j))
+                        return false;
+            return true;
         }
     }
 

@@ -16,12 +16,12 @@ namespace dungeon
             using (Window win = new Window(new IVector2(1024, 768)))
             {
                 DungeonTree tree = new DungeonTree();
-                for (int i = 1; i <= 1000; i++)
+                for (int i = 1; i <= 15; i++)
                 {
                     tree.AddNode("c" + i);
-                    if (i > 2)
+                    if (i > 1)
                     {
-                        tree.AddEdge("c" + i / 3, "c" + i);
+                        tree.AddEdge("c" + i /2, "c" + i);
                     }
                 }
 
