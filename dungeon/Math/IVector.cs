@@ -866,16 +866,16 @@ namespace Pb.Collections
 		{
 			return new IVector3(a.x + b.x, a.y + b.y, a.z + b.z);
 		}
-		/// <summary>
-		/// Subtracts one integer vector from another
-		/// </summary>
-		/// <param name="a">The integer vector to subtract from</param>
-		/// <param name="b">The integer vector to subtract</param>
-		/// <returns>The difference of the two integer vectors</returns>
-		public static IVector3 operator -(IVector3 a, IVector3 b)
-		{
-			return new IVector3(a.x - b.x, a.y - b.y, a.z - b.z);
-		}
+        /// <summary>
+        /// Subtracts one integer vector from another
+        /// </summary>
+        /// <param name="a">The integer vector to subtract from</param>
+        /// <param name="b">The integer vector to subtract</param>
+        /// <returns>The difference of the two integer vectors</returns>
+        public static IVector3 operator -(IVector3 a, IVector3 b)
+        {
+            return new IVector3(a.x - b.x, a.y - b.y, a.z - b.z);
+        }
 		/// <summary>
 		/// Multiplies an integer vector by a scalar
 		/// </summary>

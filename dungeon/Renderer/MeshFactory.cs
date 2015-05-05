@@ -81,9 +81,7 @@ namespace dungeon.Renderer
         public void RenderDungeon(Dungeon dungeon)
         {
             if (dungeon == null || !dungeon.tiles.Keys.Any())
-            {
                 return;
-            }
             lowerBound = dungeon.tiles.Keys.First();
             upperBound = lowerBound;
 
@@ -94,10 +92,7 @@ namespace dungeon.Renderer
 
                 for (int d = Direction.Begin; d != Direction.End; ++d)
                 {
-                    IVector3 npos = v + Direction.Vector[d];
-                    Tile neighbor = dungeon.Get(npos);
-
-                    if (neighbor != null)
+                    if (dungeon.tiles.ContainsKey(v + Direction.Vector[d]))
                         continue;
 
                     AddDirectionalQuad(v, d, GetComponentColor(tile.component));
