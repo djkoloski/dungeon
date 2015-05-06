@@ -6,41 +6,58 @@ using System.Threading.Tasks;
 using Pb.Collections;
 using dungeon.Generator;
 using dungeon.Renderer;
+using System.Diagnostics;
 
 namespace dungeon
 {
     class Program
     {
+        private static DungeonTree BuildTree()
+        {
+            DungeonTree tree = new DungeonTree();
+            int numRooms = 1555;
+            int[] sizes = new int[numRooms];
+            sizes[0] = 64;
+            int split = 6;
+            for (int i = 1; i <= numRooms; i++)
+            {
+                if (i > 1)
+                    sizes[i - 1] = sizes[(i + (split - 2)) / split - 1] / 2;
+                tree.AddNode("c" + i, "cube:" + sizes[i - 1]);
+                if (i > 1)
+                    tree.AddEdge("c" + (i + (split - 2)) / split, "c" + i);
+            }
+            return tree;
+        }
+
         static void Main(string[] args)
         {
-            using (Window win = new Window(new IVector2(1024, 768)))
+            bool immediate = false;
+
+            foreach (string arg in args)
             {
-                DungeonTree tree = new DungeonTree();
-                int numRooms = 259;
-                int[] sizes = new int[numRooms];
-                sizes[0] = 32;
-                int split = 6;
-                for (int i = 1; i <= numRooms; i++)
-                {
-                    if (i > 1)
-                        sizes[i - 1] = sizes[(i + (split - 2)) / split - 1] / 2;
-                    tree.AddNode("c" + i, "cube:" + sizes[i - 1]);
-                    if (i > 1)
-                        tree.AddEdge("c" + (i + (split - 2)) / split, "c" + i);
-                }
+                if (arg == "--immediate")
+                    immediate = true;
+            }
+            using (Window window = new Window(new IVector2(1024, 768)))
+            {
+                DungeonTree tree = BuildTree();
 
                 DungeonFactory dungeonFactory = new DungeonFactory(tree);
+                dungeonFactory.BeginGeneration();
 
-                Dungeon dungeon = dungeonFactory.Generate();
+                if (immediate)
+                {
+                    Stopwatch timer = new Stopwatch();
+                    timer.Start();
+                    while (dungeonFactory.Step()) { }
+                    timer.Stop();
+                    Console.WriteLine("Generation took " + timer.ElapsedMilliseconds + " milliseconds");
+                }
 
-                MeshFactory meshFactory = new MeshFactory();
-                meshFactory.RenderDungeon(dungeon);
+                window.Init(dungeonFactory);
 
-                Mesh mesh = meshFactory.Build();
-
-                win.Init(mesh);
-
-                win.Run();
+                window.Run();
             }
         }
     }
