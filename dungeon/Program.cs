@@ -15,9 +15,9 @@ namespace dungeon
         private static DungeonTree BuildTree()
         {
             DungeonTree tree = new DungeonTree();
-            int numRooms = 1555;
+            int numRooms = 33;
             int[] sizes = new int[numRooms];
-            sizes[0] = 64;
+            sizes[0] = 8;
             int split = 6;
             for (int i = 1; i <= numRooms; i++)
             {
