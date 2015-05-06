@@ -103,12 +103,12 @@ namespace dungeon.Generator
         }
 
         // TODO add more parameters to customize the node
-        public void AddNode(string name)
+        public void AddNode(string name, string type)
         {
             if (nodes_.ContainsKey(name))
                 throw new System.InvalidOperationException("Attempted to add dungeon tree node that already existed");
 
-            DungeonTreeNode node = new DungeonTreeNode(name);
+            DungeonTreeNode node = new DungeonTreeNode(name, type);
 
             if (root_ == null)
                 root_ = node;
@@ -133,22 +133,18 @@ namespace dungeon.Generator
         }
     }
 
-    public enum NodeType
-    {
-        BigRoom
-    }
-
     public class DungeonTreeNode
     {
-        public NodeType type;
+        public string type;
         public string name;
 
         public DungeonTreeEdge parent;
         public List<DungeonTreeEdge> children;
 
-        public DungeonTreeNode(string name_)
+        public DungeonTreeNode(string name_, string type_)
         {
             name = name_;
+            type = type_;
 
             parent = null;
             children = new List<DungeonTreeEdge>();
@@ -164,7 +160,6 @@ namespace dungeon.Generator
     {
         public DungeonTreeNode from;
         public DungeonTreeNode to;
-        public static readonly int MIN_DEPTH = 10;
 
         public DungeonTreeEdge(DungeonTreeNode from_, DungeonTreeNode to_)
         {

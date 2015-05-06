@@ -16,13 +16,17 @@ namespace dungeon
             using (Window win = new Window(new IVector2(1024, 768)))
             {
                 DungeonTree tree = new DungeonTree();
-                for (int i = 1; i <= 15; i++)
+                int numRooms = 259;
+                int[] sizes = new int[numRooms];
+                sizes[0] = 32;
+                int split = 6;
+                for (int i = 1; i <= numRooms; i++)
                 {
-                    tree.AddNode("c" + i);
                     if (i > 1)
-                    {
-                        tree.AddEdge("c" + i /2, "c" + i);
-                    }
+                        sizes[i - 1] = sizes[(i + (split - 2)) / split - 1] / 2;
+                    tree.AddNode("c" + i, "cube:" + sizes[i - 1]);
+                    if (i > 1)
+                        tree.AddEdge("c" + (i + (split - 2)) / split, "c" + i);
                 }
 
                 DungeonFactory dungeonFactory = new DungeonFactory(tree);

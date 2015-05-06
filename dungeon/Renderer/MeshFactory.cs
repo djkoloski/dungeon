@@ -69,12 +69,9 @@ namespace dungeon.Renderer
         private static Vector3 GetComponentColor(object component)
         {
             if (!componentColors.ContainsKey(component))
-            {
-                //componentColors[component] = Pb.Math.HSVToRGB(Dungeon.RAND.Next() * 3.0f / 13.0f * 360.0f);//lolwat
                 componentColors[component] = Pb.Math.HSVToRGB((Dungeon.RAND.Next() % cdiv) * cdiv +
                     (Dungeon.RAND.Next() % cdiv) * cdiv * 256 +
                     (Dungeon.RAND.Next() % cdiv) * cdiv * 256 * 256);
-            }
             return componentColors[component];
         }
 

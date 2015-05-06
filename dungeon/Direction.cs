@@ -20,7 +20,7 @@ namespace dungeon
         public static int End = 6;
 
         public static int GetDirection(IVector3 vector)
-        {
+        {//David if you ever see this I am so sorry I couldn't find a better way.
             for (int i = 0; i < Vector.Count(); i++)
                 if (Vector[i] == vector)
                     return i;
