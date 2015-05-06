@@ -118,7 +118,7 @@ namespace dungeon.Renderer
 
             RebuildMesh();
 
-            projectionMatrix_ = Matrix4.CreatePerspectiveFieldOfView((float)Math.PI / 2.0f, aspect, 1.0f, 100.0f);
+            projectionMatrix_ = Matrix4.CreatePerspectiveFieldOfView((float)Math.PI / 2.0f, aspect, 1.0f, 1000.0f);
 
             CursorVisible = false;
         }

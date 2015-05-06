@@ -9,10 +9,12 @@ namespace dungeon
     public class Tile
     {
         public object component;
+        public bool partOfRoom;
 
-        public Tile(object component)
+        public Tile(object component_, bool partOfRoom_)
         {
-            this.component = component;
+            component = component_;
+            partOfRoom = partOfRoom_;
         }
     }
 }

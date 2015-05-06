@@ -17,7 +17,7 @@ namespace dungeon.Generator
          * The side of the cell that the Joint is on.
          */
         public readonly int direction;
-        public readonly int distanceFromSource;
+        public readonly int distanceFromSource;//Only used for special things. Not really a part and not used in hashing.
 
         public Joint(IVector3 location_, int direction_, int distanceFromSource_)
         {

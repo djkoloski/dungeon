@@ -18,7 +18,7 @@ namespace dungeon.Generator
         //Allow hallways from the same room to merge? (if true will break MIN_HALLWAY_LENGTH)
         private static bool ALLOW_HALLWAY_MERGING = false;
 
-        private static int SAME_DIR_WEIGHT = 30;//Chances for a hallway to keep its direction
+        private static int SAME_DIR_WEIGHT = 10;//Chances for a hallway to keep its direction
         private static int DIFF_DIR_WEIGHT = 1;//Chances to change direction
         DungeonTree tree;
 
@@ -53,21 +53,26 @@ namespace dungeon.Generator
 
         public bool Step()
         {
+            //If an edge just finished, then find a new one and prepare to start digging it.
             if (currentEdge == null)
             {
-                if (!edgesToDig.Any())
-                    return false;
-                currentEdge = edgesToDig.Dequeue();
-                currentJoint = getAvailableJoint(currentEdge);
-                if (currentJoint == null)
-                    return false;
+                currentJoint = null;
+                while (currentJoint == null)
+                {
+                    if (!edgesToDig.Any())
+                        return false;
+                    currentEdge = edgesToDig.Dequeue();
+                    currentJoint = getAvailableJoint(currentEdge);
+                }
             }
+            //If our current joint is ready to plant the room, try to plant
             if (currentJoint.distanceFromSource > MIN_HALLWAY_LENGTH)
                 if (DigRoomIfPossible(currentEdge.to, currentJoint))
                 {
                     currentEdge = null;
                     return true;
                 }
+            //Otherwise, dig a hallway forward if possible. If not, then find a new joint.
             while ((currentJoint = DigHallwayFrom(currentJoint, currentEdge)) == null)
             {
                 currentJoint = getAvailableJoint(currentEdge);
@@ -79,6 +84,29 @@ namespace dungeon.Generator
                 }
             }
             return true;
+        }
+
+        private bool TrimSearchTree(DungeonTreeEdge edge, IVector3 end)
+        {
+            int neighbors = 0;
+            for (int i = 0; i < 6; i++)
+            {
+                IVector3 neighbor = end + Direction.Vector[i];
+                if (dungeon.tiles.ContainsKey(neighbor))
+                    neighbors++;
+            }
+            if (neighbors < 2)
+            {
+                dungeon.tiles.Remove(end);
+                for (int i = 0; i < 6; i++)
+                {
+                    joints[edge.from].Remove(new Joint(end, i, -1));
+                    IVector3 neighbor = end + Direction.Vector[i];
+                    if (dungeon.tiles.ContainsKey(neighbor) && dungeon.tiles[neighbor].partOfRoom == false)
+                        TrimSearchTree(edge, neighbor);
+                }
+            }
+            return false;
         }
 
         private bool DigRoomIfPossible(DungeonTreeNode room, Joint joint)
@@ -111,7 +139,7 @@ namespace dungeon.Generator
             if (room.parent != null)
                 for (int i = 0; i < MIN_SPACING; i++)
                 {
-                    dungeon.tiles[joint.GetExitLocation()] = new Tile(room.parent);
+                    dungeon.tiles[joint.GetExitLocation()] = new Tile(room.parent, false);
                     joint = new Joint(joint.GetExitLocation(), joint.direction, joint.distanceFromSource + 1);
                 }
             IVector3.IntervalEnumerable range = IVector3.Range(blockSize);
@@ -119,7 +147,7 @@ namespace dungeon.Generator
             foreach (IVector3 index in range)
             {
                 IVector3 loc = joint.GetExitLocation() + dir * index.x + tan * index.y + btn * index.z;
-                dungeon.tiles[loc] = new Tile(room);
+                dungeon.tiles[loc] = new Tile(room, true);
             }
             for (int i = 0; i < blockSize.x; i++)
             {
@@ -159,8 +187,11 @@ namespace dungeon.Generator
         {
             joints[edge.from].Remove(joint);
             if (!CanDig(dungeon.tiles, joint, edge.from))
+            {
+                TrimSearchTree(edge, joint.location);
                 return null;
-            dungeon.tiles[joint.location + Direction.Vector[joint.direction]] = new Tile(edge);
+            }
+            dungeon.tiles[joint.location + Direction.Vector[joint.direction]] = new Tile(edge, false);
             WeightedRandomList<Joint> newJoints = new WeightedRandomList<Joint>();
             //Add the immediate exit spot, then (FOR NOW) add exit joints to all its neighbors
             for (int i = 0; i < 6; i++)
@@ -175,6 +206,7 @@ namespace dungeon.Generator
             }
             if (newJoints.Any())
                 return newJoints.Get();
+            TrimSearchTree(edge, joint.GetExitLocation());
             return null;
         }
 

@@ -15,14 +15,14 @@ namespace dungeon
         private static DungeonTree BuildTree()
         {
             DungeonTree tree = new DungeonTree();
-            int numRooms = 33;
+            int numRooms = 15;
             int[] sizes = new int[numRooms];
-            sizes[0] = 8;
-            int split = 6;
+            sizes[0] = 16;
+            int split = 2;
             for (int i = 1; i <= numRooms; i++)
             {
                 if (i > 1)
-                    sizes[i - 1] = sizes[(i + (split - 2)) / split - 1] / 2;
+                    sizes[i - 1] = Math.Max(1, sizes[(i + (split - 2)) / split - 1] / 2);
                 tree.AddNode("c" + i, "cube:" + sizes[i - 1]);
                 if (i > 1)
                     tree.AddEdge("c" + (i + (split - 2)) / split, "c" + i);
