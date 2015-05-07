@@ -66,9 +66,9 @@ namespace dungeon.Renderer
 
             // Add four vertices
             AddVertex((Vector3)center, (Vector3)normal, color);
-            AddVertex((Vector3)(center + Direction.Tangent[direction]), (Vector3)normal, color);
-            AddVertex((Vector3)(center + Direction.Tangent[direction] + Direction.Bitangent[direction]), (Vector3)normal, color);
-            AddVertex((Vector3)(center + Direction.Bitangent[direction]), (Vector3)normal, color);
+            AddVertex((Vector3)(center + Direction.Vector[Direction.Tangent[direction]]), (Vector3)normal, color);
+            AddVertex((Vector3)(center + Direction.Vector[Direction.Tangent[direction]] + Direction.Vector[Direction.Bitangent[direction]]), (Vector3)normal, color);
+            AddVertex((Vector3)(center + Direction.Vector[Direction.Bitangent[direction]]), (Vector3)normal, color);
 
             // Add the indices for the quad
             AddQuad(first, first + 1, first + 2, first + 3);

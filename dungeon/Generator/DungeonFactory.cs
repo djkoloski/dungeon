@@ -124,7 +124,6 @@ namespace dungeon.Generator
                     }
                     noiseHallwayLength = 0;
                 }
-                System.Console.WriteLine("JOINT:" + currentJoint);
                 currentJoint = DigHallwayFrom(currentJoint, noiseEdge);
                 noiseHallwayLength++;
                 if (noiseHallwayLength == FAKE_HALLWAY_MAX_LENGTH)
@@ -171,19 +170,55 @@ namespace dungeon.Generator
         /// <summary>
         /// Attempts to place the given block, assuming x is parallel to the joint direction, y is the tangent direction, and z is the bitangent direction.
         /// </summary>
-        /// <param name="manifest"></param>
+        /// <param name="room">The room node to build</param>
         /// <param name="joint"></param>
         /// <param name="blockSize"></param>
         private bool PlaceBlockIfPossible(DungeonTreeNode room, Joint joint, IVector3 blockSize)
         {
-            IVector3.IntervalEnumerable bufferedRange = IVector3.Range(IVector3.one * -MIN_SPACING, blockSize + IVector3.one * MIN_SPACING);
-            IVector3 dir = Direction.Vector[joint.direction];
-            IVector3 tan = Direction.Tangent[joint.direction];
-            IVector3 btn = Direction.Bitangent[joint.direction];
-            //Check if placement is legal
-            foreach (IVector3 index in bufferedRange)
-                if (!CanPlaceAt(joint.GetExitLocation() + dir * (index.x + MIN_SPACING) + tan * index.y + btn * index.z))
-                    return false;
+            /*
+             * FIXME The rooms are currently only placed exactly on the corners of joints
+             * This can actually be remedied easily, just make the room's position between
+             *   ([-width + 1, 0], [-height + 1, 0]) instead of just (0, 0) relative to the joint.
+             * This, however, gives us more options of places to put the room, only some of which will be valid.
+             * A candidate list would have to be populated by looking at all possible locations and then a random one picked out of it.
+             */
+
+            // Get the enumerations for each relevant direction (vector, tangent, bitangent)
+            int vecdir = joint.direction;
+            int tandir = Direction.Tangent[vecdir];
+            int btndir = Direction.Bitangent[vecdir];
+
+            // Get the vectors for each relevant direction (vector, tangent, bitangent)
+            IVector3 dir = Direction.Vector[vecdir];
+            IVector3 tan = Direction.Vector[tandir];
+            IVector3 btn = Direction.Vector[btndir];
+
+            //Figure out where it's legal to place this (have to try all the spots on the side of the block)
+            bool[,] linesBlocked = new bool[(blockSize.y + MIN_SPACING) * 2 - 1, (blockSize.z + MIN_SPACING) * 2 - 1];
+            for (int j = 0; j < linesBlocked.GetLength(0); j++)
+                for (int k = 0; k < linesBlocked.GetLength(1); k++)
+                    if (!linesBlocked[j, k])
+                        for (int i = 0; i < blockSize.x + MIN_SPACING * 2; i++)
+                            if (dungeon.tiles.ContainsKey(joint.GetExitLocation() + dir * i + tan * (j - MIN_SPACING) + btn * (k - MIN_SPACING)))
+                            {
+                                for (int dj = Math.Max(0, j - blockSize.y + 1 - MIN_SPACING); dj < Math.Min(linesBlocked.GetLength(0), j + blockSize.y + MIN_SPACING); dj++)
+                                    for (int dk = Math.Max(0, k - blockSize.z + 1 - MIN_SPACING); dk < Math.Min(linesBlocked.GetLength(1), k + blockSize.z + MIN_SPACING); dk++)
+                                        linesBlocked[dj, dk] = true;
+                                break;
+                            }
+            List<IVector2> legalSpots = new List<IVector2>();
+            for (int j = 0; j < blockSize.y; j++)
+                for (int k = 0; k < blockSize.z; k++)
+                    if (!linesBlocked[j + MIN_SPACING, k + MIN_SPACING])
+                        legalSpots.Add(new IVector2(j, k));
+
+            if (!legalSpots.Any())
+                return false;
+
+            //Pick which spot to use (shift the block back by x and up by y... kinda)
+            IVector2 spot = legalSpots[Dungeon.RAND.Next() % legalSpots.Count()];
+            IVector3 delta = tan * spot.x + btn * spot.y;
+
             //Add in the leading hallways
             if (room.parent != null)
                 for (int i = 0; i < MIN_SPACING - 1; i++)
@@ -191,32 +226,32 @@ namespace dungeon.Generator
                     dungeon.tiles[joint.GetExitLocation()] = new Tile(room.parent, false);
                     joint = new Joint(joint.GetExitLocation(), joint.direction, joint.distanceFromSource + 1);
                 }
-            IVector3.IntervalEnumerable range = IVector3.Range(blockSize);
+
             //Place the block, add doorways if needed.
-            foreach (IVector3 index in range)
+            foreach (IVector3 index in IVector3.Range(blockSize))
             {
-                IVector3 loc = joint.GetExitLocation() + dir * index.x + tan * index.y + btn * index.z;
+                IVector3 loc = joint.GetExitLocation() + dir * index.x + tan * index.y + btn * index.z - delta;
                 dungeon.tiles[loc] = new Tile(room, true);
             }
             for (int i = 0; i < blockSize.x; i++)
             {
                 for (int j = 0; j < blockSize.y; j++)
                 {
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j, Direction.GetDirection(IVector3.zero - btn), 0));
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j + btn * (blockSize.z - 1), Direction.GetDirection(btn), 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j - delta, Direction.Reverse[btndir], 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j + btn * (blockSize.z - 1) - delta, btndir, 0));
                 }
                 for (int j = 0; j < blockSize.z; j++)
                 {
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + btn * j, Direction.GetDirection(IVector3.zero - tan), 0));
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * (blockSize.y - 1) + btn * j, Direction.GetDirection(tan), 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + btn * j - delta, Direction.Reverse[tandir], 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * (blockSize.y - 1) + btn * j - delta, tandir, 0));
                 }
             }
             for (int i = 0; i < blockSize.y; i++)
             {
                 for (int j = 0; j < blockSize.z; j++)
                 {
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + tan * i + btn * j, Direction.GetDirection(IVector3.zero - dir), 0));
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * (blockSize.x - 1) + tan * i + btn * j, Direction.GetDirection(dir), 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + tan * i + btn * j - delta, Direction.Reverse[vecdir], 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * (blockSize.x - 1) + tan * i + btn * j - delta, vecdir, 0));
                 }
             }
             return true;
@@ -287,7 +322,7 @@ namespace dungeon.Generator
 
             for (int i = -MIN_SPACING; i <= MIN_SPACING; i++)
                 for (int j = -MIN_SPACING; j <= MIN_SPACING; j++)
-                    if (!CanPlaceAt(joint.GetExitLocation() + Direction.Tangent[joint.direction] * i + Direction.Bitangent[joint.direction] * j))
+                    if (!CanPlaceAt(joint.GetExitLocation() + Direction.Vector[Direction.Tangent[joint.direction]] * i + Direction.Vector[Direction.Bitangent[joint.direction]] * j))
                         return false;
             return true;
         }
