@@ -122,19 +122,34 @@ namespace dungeon.Generator
         /// <summary>
         /// Attempts to place the given block, assuming x is parallel to the joint direction, y is the tangent direction, and z is the bitangent direction.
         /// </summary>
-        /// <param name="manifest"></param>
+        /// <param name="room">The room node to build</param>
         /// <param name="joint"></param>
         /// <param name="blockSize"></param>
         private bool PlaceBlockIfPossible(DungeonTreeNode room, Joint joint, IVector3 blockSize)
         {
-            IVector3.IntervalEnumerable bufferedRange = IVector3.Range(blockSize + IVector3.one * MIN_SPACING * 2);
-            IVector3 dir = Direction.Vector[joint.direction];
-            IVector3 tan = Direction.Tangent[joint.direction];
-            IVector3 btn = Direction.Bitangent[joint.direction];
+			/*
+			 * FIXME The rooms are currently only placed exactly on the corners of joints
+			 * This can actually be remedied easily, just make the room's position between
+			 *   ([-width + 1, 0], [-height + 1, 0]) instead of just (0, 0) relative to the joint.
+			 * This, however, gives us more options of places to put the room, only some of which will be valid.
+			 * A candidate list would have to be populated by looking at all possible locations and then a random one picked out of it.
+			 */
+
+			// Get the enumerations for each relevant direction (vector, tangent, bitangent)
+			int vecdir = joint.direction;
+			int tandir = Direction.Tangent[vecdir];
+			int btndir = Direction.Bitangent[vecdir];
+			
+			// Get the vectors for each relevant direction (vector, tangent, bitangent)
+			IVector3 dir = Direction.Vector[vecdir];
+            IVector3 tan = Direction.Vector[tandir];
+            IVector3 btn = Direction.Vector[btndir];
+
             //Check if placement is legal
-            foreach (IVector3 index in bufferedRange)
+            foreach (IVector3 index in IVector3.Range(blockSize + IVector3.one * MIN_SPACING * 2))
                 if (dungeon.tiles.ContainsKey(joint.GetExitLocation() + dir * index.x + tan * index.y + btn * index.z))
                     return false;
+
             //Add in the leading hallways
             if (room.parent != null)
                 for (int i = 0; i < MIN_SPACING; i++)
@@ -142,9 +157,9 @@ namespace dungeon.Generator
                     dungeon.tiles[joint.GetExitLocation()] = new Tile(room.parent, false);
                     joint = new Joint(joint.GetExitLocation(), joint.direction, joint.distanceFromSource + 1);
                 }
-            IVector3.IntervalEnumerable range = IVector3.Range(blockSize);
+            
             //Place the block, add doorways if needed.
-            foreach (IVector3 index in range)
+            foreach (IVector3 index in IVector3.Range(blockSize))
             {
                 IVector3 loc = joint.GetExitLocation() + dir * index.x + tan * index.y + btn * index.z;
                 dungeon.tiles[loc] = new Tile(room, true);
@@ -153,21 +168,21 @@ namespace dungeon.Generator
             {
                 for (int j = 0; j < blockSize.y; j++)
                 {
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j, Direction.GetDirection(IVector3.zero - btn), 0));
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j + btn * (blockSize.z - 1), Direction.GetDirection(btn), 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j, Direction.Reverse[btndir], 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j + btn * (blockSize.z - 1), btndir, 0));
                 }
                 for (int j = 0; j < blockSize.z; j++)
                 {
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + btn * j, Direction.GetDirection(IVector3.zero - tan), 0));
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * (blockSize.y - 1) + btn * j, Direction.GetDirection(tan), 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + btn * j, Direction.Reverse[tandir], 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * (blockSize.y - 1) + btn * j, tandir, 0));
                 }
             }
             for (int i = 0; i < blockSize.y; i++)
             {
                 for (int j = 0; j < blockSize.z; j++)
                 {
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + tan * i + btn * j, Direction.GetDirection(IVector3.zero - dir), 0));
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * (blockSize.x - 1) + tan * i + btn * j, Direction.GetDirection(dir), 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + tan * i + btn * j, Direction.Reverse[vecdir], 0));
+                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * (blockSize.x - 1) + tan * i + btn * j, vecdir, 0));
                 }
             }
             return true;
@@ -232,7 +247,7 @@ namespace dungeon.Generator
 
             for (int i = -MIN_SPACING; i <= MIN_SPACING; i++)
                 for (int j = -MIN_SPACING; j <= MIN_SPACING; j++)
-                    if (tiles.ContainsKey(joint.GetExitLocation() + Direction.Tangent[joint.direction] * i + Direction.Bitangent[joint.direction] * j))
+                    if (tiles.ContainsKey(joint.GetExitLocation() + Direction.Vector[Direction.Tangent[joint.direction]] * i + Direction.Vector[Direction.Bitangent[joint.direction]] * j))
                         return false;
             return true;
         }
