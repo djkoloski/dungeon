@@ -129,7 +129,9 @@ namespace dungeon.Generator
                 if (edge.to == toNode)
                     throw new System.InvalidOperationException("Attempted to create a dungeon tree edge between nodes that are already connected");
 
-            fromNode.children.Add(new DungeonTreeEdge(fromNode, toNode));
+            DungeonTreeEdge newEdge = new DungeonTreeEdge(fromNode, toNode);
+            fromNode.children.Add(newEdge);
+            toNode.parent = newEdge;
         }
     }
 
