@@ -18,16 +18,24 @@ namespace dungeon.Generator
         private static IVector3 UPPER_BOUND = IVector3.one * 1000000;// Upper bound on locations
 
         //***** Hallway properties *****
+        public enum HallwayType
+        {
+            NORMAL, STAIRWAY
+        }
+        private static double HALLWAY_NORMAL_CHANCE = 10;//Chance for a straight hallway
+        private static double HALLWAY_STAIRWAY_CHANCE = 5;//Chance for a stairway
+
+        //Normal hallway properties
         private static int SAME_DIR_WEIGHT = 10;//Chances for a hallway to keep its direction
         private static int DIFF_DIR_WEIGHT = 1;//Chances to change direction
-        private static int MIN_HALLWAY_LENGTH = 10;//The minimum length of a hallway before making a room
+        private static bool ALLOW_VERTICAL_HALLWAYS = false;//Allow normal hallways to grow up and down just like horizontal ones?
 
-        private static bool ALLOW_VERTICAL_HALLWAYS = false;//Allow hallways to grow up and down just like horizontal ones?
+        private static int MIN_HALLWAY_LENGTH = 10;//The minimum length of a hallway before making a room
         private static bool ALLOW_HALLWAY_MERGING = false;//Allow hallways from the same room to merge? (if true will break MIN_HALLWAY_LENGTH)
 
         //***** Backtracking properties *****
-        private static int FAKE_HALLWAY_MAX_LENGTH = (int)(MIN_HALLWAY_LENGTH * 1.5); //The maximum distance out a fake hallway will go. (TODO)
-        private static double PORTION_FAKE_HALLWAYS = 2;//What multiple of real hallway tiles should be fake?
+        private static int FAKE_HALLWAY_MAX_LENGTH = (int)(MIN_HALLWAY_LENGTH * 1); //The maximum distance out a fake hallway will go.
+        private static double PORTION_FAKE_HALLWAYS_ON_HALLWAYS = 0.25;//How many fake hallways should be made from each real hallway joint, approximately.
 
         DungeonTree tree;
 
@@ -38,7 +46,8 @@ namespace dungeon.Generator
         Queue<DungeonTreeEdge> edgesToDig;//List of edges to dig out
         DungeonTreeEdge currentEdge;//The edge that's currently being dug out
         //backpropagation stuff
-        Queue<Joint> backtrackJoints;
+        List<Joint> backtrackJoints;
+        int backtrackIndex;
         DungeonTreeEdge noiseEdge;
         int noiseHallwayLength = 0;
 
@@ -78,15 +87,13 @@ namespace dungeon.Generator
                         if (!edgesToDig.Any())
                         {
                             backwards = true;
-                            backtrackJoints = new Queue<Joint>();
+                            backtrackJoints = new List<Joint>();
+                            backtrackIndex = 0;
                             noiseEdge = new DungeonTreeEdge(tree.root_, null);
                             foreach (List<Joint> jointList in joints.Values)
-                            {
                                 foreach (Joint joint in jointList)
-                                {
-                                    backtrackJoints.Enqueue(joint);
-                                }
-                            }
+                                    if (!dungeon.tiles[joint.location].isPartOfRoom)
+                                        backtrackJoints.Add(joint);
                             return true;
                         }
                         currentEdge = edgesToDig.Dequeue();
@@ -116,11 +123,14 @@ namespace dungeon.Generator
             {
                 if (currentJoint == null)
                 {
-                    while (Dungeon.RAND.NextDouble() > PORTION_FAKE_HALLWAYS || currentJoint == null)
+                    while (Dungeon.RAND.NextDouble() > PORTION_FAKE_HALLWAYS_ON_HALLWAYS || currentJoint == null)
                     {
-                        if (!backtrackJoints.Any())
+                        if (backtrackIndex == backtrackJoints.Count())
+                        {
                             return false;
-                        currentJoint = backtrackJoints.Dequeue();
+                        }
+                        currentJoint = backtrackJoints[backtrackIndex];
+                        backtrackIndex++;
                     }
                     noiseHallwayLength = 0;
                 }
@@ -134,8 +144,10 @@ namespace dungeon.Generator
             return true;
         }
 
-        private bool TrimSearchTree(DungeonTreeEdge edge, IVector3 end)
+        private void TrimSearchTree(DungeonTreeEdge edge, IVector3 end)
         {
+            if (edge.to == null)
+                return;
             int neighbors = 0;
             for (int i = 0; i < 6; i++)
             {
@@ -148,13 +160,12 @@ namespace dungeon.Generator
                 dungeon.tiles.Remove(end);
                 for (int i = 0; i < 6; i++)
                 {
-                    joints[edge.from].Remove(new Joint(end, i, -1));
+                    joints[edge.from].Remove(new Joint(end, i));
                     IVector3 neighbor = end + Direction.Vector[i];
-                    if (dungeon.tiles.ContainsKey(neighbor) && dungeon.tiles[neighbor].partOfRoom == false)
+                    if (dungeon.tiles.ContainsKey(neighbor) && dungeon.tiles[neighbor].isPartOfRoom == false)
                         TrimSearchTree(edge, neighbor);
                 }
             }
-            return false;
         }
 
         private bool DigRoomIfPossible(DungeonTreeNode room, Joint joint)
@@ -175,14 +186,6 @@ namespace dungeon.Generator
         /// <param name="blockSize"></param>
         private bool PlaceBlockIfPossible(DungeonTreeNode room, Joint joint, IVector3 blockSize)
         {
-            /*
-             * FIXME The rooms are currently only placed exactly on the corners of joints
-             * This can actually be remedied easily, just make the room's position between
-             *   ([-width + 1, 0], [-height + 1, 0]) instead of just (0, 0) relative to the joint.
-             * This, however, gives us more options of places to put the room, only some of which will be valid.
-             * A candidate list would have to be populated by looking at all possible locations and then a random one picked out of it.
-             */
-
             // Get the enumerations for each relevant direction (vector, tangent, bitangent)
             int vecdir = joint.direction;
             int tandir = Direction.Tangent[vecdir];
@@ -221,7 +224,7 @@ namespace dungeon.Generator
 
             //Add in the leading hallways
             if (room.parent != null)
-                for (int i = 0; i < MIN_SPACING - 1; i++)
+                for (int i = 0; i < MIN_SPACING; i++)
                 {
                     dungeon.tiles[joint.GetExitLocation()] = new Tile(room.parent, false);
                     joint = new Joint(joint.GetExitLocation(), joint.direction, joint.distanceFromSource + 1);
@@ -257,9 +260,14 @@ namespace dungeon.Generator
             return true;
         }
 
+        private bool CanAddJoint(DungeonTreeNode room, Joint joint)
+        {
+            return (ALLOW_VERTICAL_HALLWAYS || joint.direction % 3 != 1) && CanDigHallway(joint, room);
+        }
+
         private bool AddJointIfPossible(DungeonTreeNode room, Joint joint)
         {
-            if ((ALLOW_VERTICAL_HALLWAYS || joint.direction % 3 != 1) && CanDigHallway(joint, room))
+            if (CanAddJoint(room, joint))
             {
                 joints[room].Add(joint);
                 return true;
@@ -267,37 +275,116 @@ namespace dungeon.Generator
             return false;
         }
 
+        private WeightedRandomList<HallwayType> getHallwayTypeList()
+        {
+            WeightedRandomList<HallwayType> ret = new WeightedRandomList<HallwayType>();
+            ret.Add(HallwayType.NORMAL, HALLWAY_NORMAL_CHANCE);
+            ret.Add(HallwayType.STAIRWAY, HALLWAY_STAIRWAY_CHANCE);
+            return ret;
+        }
+
+        /// <summary>
+        /// Attempts to dig a (weighted) randomly selected hallway type from the given joint. Will also delete search tree if dig fails.
+        /// </summary>
+        /// <param name="joint"></param>
+        /// <param name="edge"></param>
+        /// <returns></returns>
         private Joint DigHallwayFrom(Joint joint, DungeonTreeEdge edge)
         {
             joints[edge.from].Remove(joint);
-            if (!CanDigHallway(joint, edge.from))
+
+            WeightedRandomList<HallwayType> hallwayTypesToTry = getHallwayTypeList();
+            Joint ret = null;
+            while (ret == null && hallwayTypesToTry.Any())
             {
-                if (edge.to != null) TrimSearchTree(edge, joint.location);
+                HallwayType cur = hallwayTypesToTry.Remove();
+                switch (cur)
+                {
+                    case HallwayType.NORMAL:
+                        ret = DigNormalHallwayIfPossible(joint, edge);
+                        continue;
+                    case HallwayType.STAIRWAY:
+                        ret = DigStairwayIfPossible(joint, edge);
+                        continue;
+                }
+            }
+            if (ret == null)
+                TrimSearchTree(edge, joint.location);
+            return ret;
+        }
+
+        private Joint DigStairwayIfPossible(Joint joint, DungeonTreeEdge edge)
+        {
+            Joint upJoint = new Joint(joint.GetExitLocation(), Direction.Up);
+            Joint downJoint = new Joint(joint.GetExitLocation(), Direction.Down);
+            Joint upExitJoint = new Joint(upJoint.GetExitLocation(), joint.direction, joint.distanceFromSource + 2);
+            Joint downExitJoint = new Joint(downJoint.GetExitLocation(), joint.direction, joint.distanceFromSource + 2);
+
+            bool canDigUp = CanDigHallway(upJoint, edge.from) && CanDigHallway(upExitJoint, edge.from) && CanAddJoint(edge.from, upExitJoint);
+            bool canDigDown = CanDigHallway(downJoint, edge.from) && CanDigHallway(downExitJoint, edge.from) && CanAddJoint(edge.from, downExitJoint);
+            if (!CanDigHallway(joint, edge.from) || !(canDigDown || canDigUp))
+            {
                 return null;
             }
+            //Dig the first outwards tile
+            dungeon.tiles[joint.GetExitLocation()] = new Tile(edge, false);
+            dungeon.tiles[joint.GetExitLocation()].roomType = HallwayType.STAIRWAY.ToString();
+
+            bool pickUpIfBothAvailable = Dungeon.RAND.NextDouble() < 0.5;
+            //Dig the upwards tile if necessary
+            if (canDigUp && !canDigDown || (canDigUp && canDigDown && pickUpIfBothAvailable))
+            {
+                dungeon.tiles[upJoint.GetExitLocation()] = new Tile(edge, false);
+                dungeon.tiles[upJoint.GetExitLocation()].roomType = HallwayType.STAIRWAY.ToString();
+                dungeon.tiles[upJoint.GetExitLocation()].roomInfo[Tile.DIR_KEY] = new int[] { Direction.Down, joint.direction };
+
+                dungeon.tiles[joint.GetExitLocation()].roomInfo[Tile.DIR_KEY] = new int[] { Direction.Up, Direction.Reverse[joint.direction] };
+
+                AddJointIfPossible(edge.from, upExitJoint);
+                return upExitJoint;
+            }
+            //Dig the downwards tile if necessary
+            if (canDigDown && !canDigUp || (canDigUp && canDigDown && !pickUpIfBothAvailable))
+            {
+                dungeon.tiles[downJoint.GetExitLocation()] = new Tile(edge, false);
+                dungeon.tiles[downJoint.GetExitLocation()].roomType = HallwayType.STAIRWAY.ToString();
+                dungeon.tiles[downJoint.GetExitLocation()].roomInfo[Tile.DIR_KEY] = new int[] { Direction.Up, joint.direction };
+
+                dungeon.tiles[joint.GetExitLocation()].roomInfo[Tile.DIR_KEY] = new int[] { Direction.Down, Direction.Reverse[joint.direction] };
+
+                AddJointIfPossible(edge.from, downExitJoint);
+                return downExitJoint;
+            }
+            throw new Exception("Reached an illegal point in the code!");
+        }
+
+        private Joint DigNormalHallwayIfPossible(Joint joint, DungeonTreeEdge edge)
+        {
+            //Don't let us dig if there's something in the way
+            if (!CanDigHallway(joint, edge.from))
+                return null;
+            //Make sure at least one of the pathways from the new hallways is legit
+            bool canAdd = false;
+            for (int i = 0; i < 6; i++)
+                if (CanAddJoint(edge.from, new Joint(joint.GetExitLocation(), i)))
+                    canAdd = true;
+            if (!canAdd)
+                return null;
             dungeon.tiles[joint.location + Direction.Vector[joint.direction]] = new Tile(edge, false);
             WeightedRandomList<Joint> newJoints = new WeightedRandomList<Joint>();
             //Add the immediate exit spot, then (FOR NOW) add exit joints to all its neighbors
             for (int i = 0; i < 6; i++)
             {
                 Joint newJoint = new Joint(joint.GetExitLocation(), i, joint.distanceFromSource + 1);
-                bool tryAddingJoint = i % 3 != 1 || joint.direction % 3 != 1;
                 if (AddJointIfPossible(edge.from, newJoint))
                 {
-                    if (edge.to == null)
-                    {
-                        backtrackJoints.Enqueue(newJoint);
-                    }
                     if (i == joint.direction && i % 3 != 1)
                         newJoints.Add(newJoint, SAME_DIR_WEIGHT);
                     else
                         newJoints.Add(newJoint, DIFF_DIR_WEIGHT);
                 }
             }
-            if (newJoints.Any())
-                return newJoints.Get();
-            if (edge.to != null) TrimSearchTree(edge, joint.GetExitLocation());
-            return null;
+            return newJoints.Get();//Should never fail cause we verified there was a legal joint.
         }
 
         private Joint getAvailableJoint(DungeonTreeEdge edge)
@@ -312,6 +399,12 @@ namespace dungeon.Generator
             return null;
         }
 
+        /// <summary>
+        /// Checks if a normal hallway can be placed at the exit of the given joint. Will check for adjacency, merging, and spacing restrictions.
+        /// </summary>
+        /// <param name="joint"></param>
+        /// <param name="source"></param>
+        /// <returns></returns>
         private bool CanDigHallway(Joint joint, DungeonTreeNode source)
         {
             if (!CanPlaceAt(joint.GetExitLocation() + Direction.Vector[joint.direction]))
@@ -322,8 +415,9 @@ namespace dungeon.Generator
 
             for (int i = -MIN_SPACING; i <= MIN_SPACING; i++)
                 for (int j = -MIN_SPACING; j <= MIN_SPACING; j++)
-                    if (!CanPlaceAt(joint.GetExitLocation() + Direction.Vector[Direction.Tangent[joint.direction]] * i + Direction.Vector[Direction.Bitangent[joint.direction]] * j))
-                        return false;
+                    for (int k = 0; k < MIN_SPACING; k++)
+                        if (!CanPlaceAt(joint.GetExitLocation() + Direction.Vector[joint.direction] * k + Direction.Vector[Direction.Tangent[joint.direction]] * i + Direction.Vector[Direction.Bitangent[joint.direction]] * j))
+                            return false;
             return true;
         }
 

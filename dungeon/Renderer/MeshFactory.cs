@@ -73,6 +73,7 @@ namespace dungeon.Renderer
             // Add the indices for the quad
             AddQuad(first, first + 1, first + 2, first + 3);
         }
+
         /// <summary>
         /// Adds a single vertex to the mesh factory
         /// </summary>
@@ -115,15 +116,12 @@ namespace dungeon.Renderer
         {
             indices.Add((UInt32)i);
         }
-        private static int cdiv = 8;
-        private static Dictionary<object, Vector3> componentColors = new Dictionary<object, Vector3>();
+
         private static Vector3 GetTileColor(Tile tile)
         {
-            if (!componentColors.ContainsKey(tile.component))
-                componentColors[tile.component] = Pb.Math.HSVToRGB((Dungeon.RAND.Next() % cdiv) * cdiv +
-                    (Dungeon.RAND.Next() % cdiv) * cdiv * 256 +
-                    (Dungeon.RAND.Next() % cdiv) * cdiv * 256 * 256);
-            return componentColors[tile.component];
+            if (tile.isPartOfRoom)
+                return Vector3.One;
+            return new Vector3(1, 0, 0);
         }
         /// <summary>
         /// Renders the voxels of a dungeon into the mesh factory
@@ -145,13 +143,46 @@ namespace dungeon.Renderer
                 IVector3 v = pair.Key;
                 Tile tile = pair.Value;
 
-                // Loop over all the directions from the position
-                for (int d = Direction.Begin; d != Direction.End; ++d)
+                if (tile.roomInfo.ContainsKey(Tile.DIR_KEY))
                 {
-                    // Get the neighboring voxel
-                    if (!generator.dungeon.tiles.ContainsKey(v + Direction.Vector[d]))
+                    //Assuming dirs only have two possibilities for now. Our goal is to construct the triangle representing this shape.
+                    //Also, assume vertical dir is first, then horizontal.
+                    int[] dirs = (int[])tile.roomInfo[Tile.DIR_KEY];
+                    //Find the vector perpendicular to both of the given directions...
+                    IVector3 perp = IVector3.Cross(Direction.Vector[dirs[0]], Direction.Vector[dirs[1]]);
+                    //Working with an imaginary scaled up model (x2) of the cube to put the tile in.
+                    //These variables are named with the reference of facing outward from the center towards the normal.
+                    Vector3 backLeft = (Vector3)(v + (IVector3.one + Direction.Vector[dirs[0]] - Direction.Vector[dirs[1]] + perp) / 2);
+                    Vector3 backRight = (Vector3)(v + (IVector3.one + Direction.Vector[dirs[0]] - Direction.Vector[dirs[1]] - perp) / 2);
+                    Vector3 frontRight = (Vector3)(v + (IVector3.one - Direction.Vector[dirs[0]] + Direction.Vector[dirs[1]] - perp) / 2);
+                    Vector3 frontLeft = (Vector3)(v + (IVector3.one - Direction.Vector[dirs[0]] + Direction.Vector[dirs[1]] + perp) / 2);
+                    Vector3 forwardLeft = (Vector3)(v + (IVector3.one + Direction.Vector[dirs[0]] + Direction.Vector[dirs[1]] + perp) / 2);
+                    Vector3 forwardRight = (Vector3)(v + (IVector3.one + Direction.Vector[dirs[0]] + Direction.Vector[dirs[1]] - perp) / 2);
+                    Vector3 normal = -(Vector3)Direction.Vector[dirs[0]];
+                    Vector3 sideNormal = (Vector3)Direction.Vector[dirs[1]];
+
+                    AddQuadFromPoints(backLeft, backRight, frontRight, frontLeft, normal, GetTileColor(tile));
+                    //HACK
+                    if (dirs[0] == Direction.Down)
                     {
-                        // Add a wall
+                        sideNormal *= -1;
+                    }
+                    AddTriangleFromPoints(backLeft, forwardLeft, frontLeft, sideNormal, GetTileColor(tile));
+                    AddTriangleFromPoints(forwardRight, frontRight, backRight, sideNormal, GetTileColor(tile));
+                }
+                else
+                {
+                    // Loop over all the directions from the position
+                    for (int d = Direction.Begin; d != Direction.End; ++d)
+                    {
+                        IVector3 neighbor = v + Direction.Vector[d];
+                        // Get the neighboring voxel
+                        if (generator.dungeon.tiles.ContainsKey(neighbor))
+                        {
+                            Dictionary<object, object> roomInfo = generator.dungeon.tiles[neighbor].roomInfo;
+                            if (!roomInfo.ContainsKey(Tile.DIR_KEY) || ((int[])roomInfo[Tile.DIR_KEY])[1] == Direction.Reverse[d])
+                                continue;
+                        }
                         AddDirectionalQuad(v, d, GetTileColor(tile));
                     }
                 }
@@ -160,6 +191,23 @@ namespace dungeon.Renderer
                 lowerBound = IVector3.Min(lowerBound, v);
                 upperBound = IVector3.Max(upperBound, v);
             }
+        }
+        public void AddTriangleFromPoints(Vector3 a, Vector3 b, Vector3 c, Vector3 normal, Vector3 color)
+        {
+            int first = vertices.Count;
+            AddVertex(a, normal, color);
+            AddVertex(b, normal, color);
+            AddVertex(c, normal, color);
+            AddTriangle(first, first + 1, first + 2);
+        }
+        public void AddQuadFromPoints(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal, Vector3 color)
+        {
+            int first = vertices.Count;
+            AddVertex(a, normal, color);
+            AddVertex(b, normal, color);
+            AddVertex(c, normal, color);
+            AddVertex(d, normal, color);
+            AddQuad(first, first + 1, first + 2, first + 3);
         }
         /// <summary>
         /// Builds a mesh from the contents of the factory

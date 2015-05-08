@@ -8,13 +8,18 @@ namespace dungeon
 {
     public class Tile
     {
-        public object component;
-        public bool partOfRoom;
+        //Brutish way to specify special directional properties of a tile.
+        public static readonly String DIR_KEY = "DIR_KEY";
 
-        public Tile(object component_, bool partOfRoom_)
+        public object component;
+        public bool isPartOfRoom;
+        public string roomType;
+        public Dictionary<object, object> roomInfo = new Dictionary<object, object>();
+
+        public Tile(object component_, bool isPartOfRoom_)
         {
             component = component_;
-            partOfRoom = partOfRoom_;
+            isPartOfRoom = isPartOfRoom_;
         }
     }
 }

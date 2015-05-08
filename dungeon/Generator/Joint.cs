@@ -26,6 +26,13 @@ namespace dungeon.Generator
             distanceFromSource = distanceFromSource_;
         }
 
+        public Joint(IVector3 location_, int direction_)
+        {
+            location = location_;
+            direction = direction_;
+            distanceFromSource = -1;
+        }
+
         public override string ToString()
         {
             return "Joint(" + location.ToString() + ":" + direction + ")";
@@ -43,7 +50,7 @@ namespace dungeon.Generator
 
         public override int GetHashCode()
         {
-            return location.GetHashCode() ^ direction.GetHashCode();
+            return location.GetHashCode() * direction.GetHashCode();
         }
 
         public IVector3 GetExitLocation()
