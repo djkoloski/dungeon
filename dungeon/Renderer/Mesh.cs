@@ -14,14 +14,6 @@ namespace dungeon.Renderer
     public class Mesh
     {
         /// <summary>
-        /// The lower bound of the mesh
-        /// </summary>
-        private Vector3 lowerBound_;
-        /// <summary>
-        /// The upper bound of the mesh
-        /// </summary>
-        private Vector3 upperBound_;
-        /// <summary>
         /// The vertex buffer object id
         /// </summary>
         private int vertexBuffer_;
@@ -33,46 +25,7 @@ namespace dungeon.Renderer
         /// The number of indices in the mesh
         /// </summary>
         private int indexCount_;
-        /// <summary>
-        /// Gets the lower bound of the mesh
-        /// </summary>
-        public Vector3 lowerBound
-        {
-            get
-            {
-                return lowerBound_;
-            }
-        }
-        /// <summary>
-        /// Gets the upper bound of the mesh
-        /// </summary>
-        public Vector3 upperBound
-        {
-            get
-            {
-                return upperBound_;
-            }
-        }
-        /// <summary>
-        /// Gets the center of the mesh
-        /// </summary>
-        public Vector3 center
-        {
-            get
-            {
-                return (lowerBound + upperBound) / 2.0f;
-            }
-        }
-        /// <summary>
-        /// Gets the radius of the bounding sphere of the mesh
-        /// </summary>
-        public float radius
-        {
-            get
-            {
-                return (upperBound_ - lowerBound_).Length / 2.0f;
-            }
-        }
+        
         /// <summary>
         /// Constructs a new mesh
         /// </summary>
@@ -106,9 +59,7 @@ namespace dungeon.Renderer
         /// </summary>
         /// <param name="vertices">The array of the vertices of the mesh</param>
         /// <param name="indices">The array of the indices of the mesh</param>
-        /// <param name="lowerBound">The lower bound of the mesh</param>
-        /// <param name="upperBound">The upper bound of the mesh</param>
-        public void Build(Vertex[] vertices, UInt32[] indices, Vector3 lowerBound, Vector3 upperBound)
+        public void Build(Vertex[] vertices, UInt32[] indices)
         {
             // Clear just in case
             Clear();
@@ -142,10 +93,6 @@ namespace dungeon.Renderer
             );
             // Set the index count
             indexCount_ = indices.Length;
-
-            // Set the bounds
-            lowerBound_ = lowerBound;
-            upperBound_ = upperBound;
         }
         /// <summary>
         /// Renders the mesh
