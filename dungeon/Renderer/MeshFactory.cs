@@ -117,7 +117,7 @@ namespace dungeon.Renderer
         /// <param name="dungeon">The dungeon to render</param>
         public void RenderDungeonVoxel(DungeonFactory generator)
         {
-			Clear();
+            Clear();
 
             // Get the tiles map
             Dictionary<IVector3, Tile> tiles = generator.dungeon.tiles;
@@ -155,24 +155,29 @@ namespace dungeon.Renderer
                     }
                     AddTriangleFromPoints(backLeft, forwardLeft, frontLeft, sideNormal, GetTileColor(tile));
                     AddTriangleFromPoints(forwardRight, frontRight, backRight, sideNormal, GetTileColor(tile));
+
+                    SplitWithQuadIfNecessary(generator, v, dirs[1], tile);
                 }
                 else
                 {
                     // Loop over all the directions from the position
                     for (int d = Direction.Begin; d != Direction.End; ++d)
-                    {
-                        IVector3 neighbor = v + Direction.Vector[d];
-                        // Get the neighboring voxel
-                        if (generator.dungeon.tiles.ContainsKey(neighbor))
-                        {
-                            Dictionary<object, object> roomInfo = generator.dungeon.tiles[neighbor].roomInfo;
-                            if (!roomInfo.ContainsKey(Tile.DIR_KEY) || ((int[])roomInfo[Tile.DIR_KEY])[1] == Direction.Reverse[d])
-                                continue;
-                        }
-                        AddDirectionalQuad(v, d, GetTileColor(tile));
-                    }
+                        SplitWithQuadIfNecessary(generator, v, d, tile);
                 }
             }
+        }
+
+        private void SplitWithQuadIfNecessary(DungeonFactory generator, IVector3 loc, int direction, Tile tile)
+        {
+            IVector3 neighbor = loc + Direction.Vector[direction];
+            // Get the neighboring voxel
+            if (generator.dungeon.tiles.ContainsKey(neighbor))
+            {
+                Dictionary<object, object> roomInfo = generator.dungeon.tiles[neighbor].roomInfo;
+                if (!roomInfo.ContainsKey(Tile.DIR_KEY) || ((int[])roomInfo[Tile.DIR_KEY])[1] == Direction.Reverse[direction])
+                    return;
+            }
+            AddDirectionalQuad(loc, direction, GetTileColor(tile));
         }
         public void AddTriangleFromPoints(Vector3 a, Vector3 b, Vector3 c, Vector3 normal, Vector3 color)
         {
@@ -191,10 +196,10 @@ namespace dungeon.Renderer
             AddVertex(d, normal, color);
             AddQuad(first, first + 1, first + 2, first + 3);
         }
-		/// <summary>
-		/// A prebuilt edge table to speed up building marching cubes
-		/// </summary>
-		private static int[] edgeTable = new int[256]{
+        /// <summary>
+        /// A prebuilt edge table to speed up building marching cubes
+        /// </summary>
+        private static int[] edgeTable = new int[256]{
 			0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
 			0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
 			0x190, 0x99 , 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,
@@ -228,10 +233,10 @@ namespace dungeon.Renderer
 			0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
 			0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0
 		};
-		/// <summary>
-		/// A prebuilt tri table to speed up marching cubes
-		/// </summary>
-		private static int[,] triTable = new int[256,16]{
+        /// <summary>
+        /// A prebuilt tri table to speed up marching cubes
+        /// </summary>
+        private static int[,] triTable = new int[256, 16]{
 			{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 			{0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 			{0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -489,10 +494,10 @@ namespace dungeon.Renderer
 			{0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 			{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}
 		};
-		/// <summary>
-		/// The vertices of the cube to sample from for marching cubes
-		/// </summary>
-		public int[,] cubeVerts = new int[8,3]{
+        /// <summary>
+        /// The vertices of the cube to sample from for marching cubes
+        /// </summary>
+        public int[,] cubeVerts = new int[8, 3]{
 			{0, 0, 0},
 			{1, 0, 0},
 			{1, 1, 0},
@@ -502,10 +507,10 @@ namespace dungeon.Renderer
 			{1, 1, 1},
 			{0, 1, 1}
 		};
-		/// <summary>
-		/// The edges to interpolate across for marching cubes
-		/// </summary>
-		public int[,] edgeIndex = new int[12,2]{
+        /// <summary>
+        /// The edges to interpolate across for marching cubes
+        /// </summary>
+        public int[,] edgeIndex = new int[12, 2]{
 			{0, 1},
 			{1, 2},
 			{2, 3},
@@ -519,127 +524,127 @@ namespace dungeon.Renderer
 			{2, 6},
 			{3, 7}
 		};
-		/// <summary>
-		/// Renders the given dungeon using marching cubes
-		/// </summary>
-		/// <param name="generator">The generator to use</param>
-		public void RenderDungeonMarchingCubes(DungeonFactory generator)
-		{
-			// Clear the factory
-			Clear();
+        /// <summary>
+        /// Renders the given dungeon using marching cubes
+        /// </summary>
+        /// <param name="generator">The generator to use</param>
+        public void RenderDungeonMarchingCubes(DungeonFactory generator)
+        {
+            // Clear the factory
+            Clear();
 
-			// Make a new hashset for the cell candidates
-			HashSet<IVector3> cells = new HashSet<IVector3>();
-			Dictionary<IVector3, Tile> tiles = generator.dungeon.tiles;
+            // Make a new hashset for the cell candidates
+            HashSet<IVector3> cells = new HashSet<IVector3>();
+            Dictionary<IVector3, Tile> tiles = generator.dungeon.tiles;
 
-			// Add all positions that need to be meshed across
-			foreach (KeyValuePair<IVector3, Tile> tile in tiles)
-			{
-				for (int i = 0; i < 8; ++i)
-				{
-					cells.Add(
-						new IVector3(
-							tile.Key.x + ((i & 1) != 0 ? 0 : -1),
-							tile.Key.y + ((i & 2) != 0 ? 0 : -1),
-							tile.Key.z + ((i & 4) != 0 ? 0 : -1)
-						)
-					);
-				}
-			}
+            // Add all positions that need to be meshed across
+            foreach (KeyValuePair<IVector3, Tile> tile in tiles)
+            {
+                for (int i = 0; i < 8; ++i)
+                {
+                    cells.Add(
+                        new IVector3(
+                            tile.Key.x + ((i & 1) != 0 ? 0 : -1),
+                            tile.Key.y + ((i & 2) != 0 ? 0 : -1),
+                            tile.Key.z + ((i & 4) != 0 ? 0 : -1)
+                        )
+                    );
+                }
+            }
 
-			// Allocate memory for the grid values and edges
-			float[] grid = new float[8];
-			int[] edges = new int[12];
+            // Allocate memory for the grid values and edges
+            float[] grid = new float[8];
+            int[] edges = new int[12];
 
-			// Loop over each candidate cell
-			foreach (IVector3 v in cells)
-			{
-				// Build the cube index and calculate the color
-				int cubeindex = 0;
-				Vector3 color = Vector3.Zero;
-				int found = 0;
-				for (int i = 0; i < 8; ++i)
-				{
-					IVector3 cv = new IVector3(cubeVerts[i, 0], cubeVerts[i, 1], cubeVerts[i, 2]);
-					IVector3 p = v + cv;
-					if (tiles.ContainsKey(p))
-					{
-						color += GetTileColor(tiles[p]);
-						++found;
-						grid[i] = 1.0f;
-						cubeindex |= (1 << i);
-					}
-					else
-						grid[i] = 0.0f;
-				}
-				color /= found;
+            // Loop over each candidate cell
+            foreach (IVector3 v in cells)
+            {
+                // Build the cube index and calculate the color
+                int cubeindex = 0;
+                Vector3 color = Vector3.Zero;
+                int found = 0;
+                for (int i = 0; i < 8; ++i)
+                {
+                    IVector3 cv = new IVector3(cubeVerts[i, 0], cubeVerts[i, 1], cubeVerts[i, 2]);
+                    IVector3 p = v + cv;
+                    if (tiles.ContainsKey(p))
+                    {
+                        color += GetTileColor(tiles[p]);
+                        ++found;
+                        grid[i] = 1.0f;
+                        cubeindex |= (1 << i);
+                    }
+                    else
+                        grid[i] = 0.0f;
+                }
+                color /= found;
 
-				// If the cube doesn't need to be built, skip it
-				int edgeMask = edgeTable[cubeindex];
-				if (edgeMask == 0)
-					continue;
+                // If the cube doesn't need to be built, skip it
+                int edgeMask = edgeTable[cubeindex];
+                if (edgeMask == 0)
+                    continue;
 
-				// Loop over each vertex in the marching cube representation
-				for (int i = 0; i < 12; ++i)
-				{
-					// If this vertex doesn't need to be built, skip it
-					if ((edgeMask & (1 << i)) == 0)
-						continue;
+                // Loop over each vertex in the marching cube representation
+                for (int i = 0; i < 12; ++i)
+                {
+                    // If this vertex doesn't need to be built, skip it
+                    if ((edgeMask & (1 << i)) == 0)
+                        continue;
 
-					// Remember which vertex this was
-					edges[i] = vertices.Count;
+                    // Remember which vertex this was
+                    edges[i] = vertices.Count;
 
-					// Spooky calculations (mosty interpolation)
-					float[] nv = new float[3]{0.0f, 0.0f, 0.0f};
-					int[] e = new int[2]{edgeIndex[i, 0], edgeIndex[i, 1]};
-					int[] p0 = new int[3]{cubeVerts[e[0], 0], cubeVerts[e[0], 1], cubeVerts[e[0], 2]};
-					int[] p1 = new int[3]{cubeVerts[e[1], 0], cubeVerts[e[1], 1], cubeVerts[e[1], 2]};
-					float a = grid[e[0]];
-					float b = grid[e[1]];
-					float d = a - b;
-					float t = 0;
+                    // Spooky calculations (mosty interpolation)
+                    float[] nv = new float[3] { 0.0f, 0.0f, 0.0f };
+                    int[] e = new int[2] { edgeIndex[i, 0], edgeIndex[i, 1] };
+                    int[] p0 = new int[3] { cubeVerts[e[0], 0], cubeVerts[e[0], 1], cubeVerts[e[0], 2] };
+                    int[] p1 = new int[3] { cubeVerts[e[1], 0], cubeVerts[e[1], 1], cubeVerts[e[1], 2] };
+                    float a = grid[e[0]];
+                    float b = grid[e[1]];
+                    float d = a - b;
+                    float t = 0;
 
-					if (Math.Abs(d) > 1e-6)
-						t = a / d;
+                    if (Math.Abs(d) > 1e-6)
+                        t = a / d;
 
-					// Make the position of the vertex
-					for (int j = 0; j < 3; ++j)
-						nv[j] = v[j] + p0[j] + t * (p1[j] - p0[j]);
-					
-					// Add it
-					AddVertex(new Vector3(nv[0] + 0.5f, nv[1] + 0.5f, nv[2] + 0.5f), Vector3.Zero, color);
-				}
+                    // Make the position of the vertex
+                    for (int j = 0; j < 3; ++j)
+                        nv[j] = v[j] + p0[j] + t * (p1[j] - p0[j]);
 
-				// Add a triangle with the vertices
-				for (int i = 0; i < 12; i += 3)
-				{
-					if (triTable[cubeindex, i] == -1)
-						break;
-					AddTriangle(edges[triTable[cubeindex, i]], edges[triTable[cubeindex, i + 1]], edges[triTable[cubeindex, i + 2]]);
-				}
-			}
-			// Recalculate normals because who knows what they were
-			RecalculateNormals();
-		}
-		public void RecalculateNormals()
-		{
-			// Loop over every vertex, calculate the face normal and use that
-			for (int i = 0; i < indices.Count; i += 3)
-			{
-				Vertex a = vertices[(int)indices[i]];
-				Vertex b = vertices[(int)indices[i + 1]];
-				Vertex c = vertices[(int)indices[i + 2]];
+                    // Add it
+                    AddVertex(new Vector3(nv[0] + 0.5f, nv[1] + 0.5f, nv[2] + 0.5f), Vector3.Zero, color);
+                }
 
-				Vector3 normal = Vector3.Cross(a.position - b.position, c.position - b.position).Normalized();
-				a.normal = normal;
-				b.normal = normal;
-				c.normal = normal;
+                // Add a triangle with the vertices
+                for (int i = 0; i < 12; i += 3)
+                {
+                    if (triTable[cubeindex, i] == -1)
+                        break;
+                    AddTriangle(edges[triTable[cubeindex, i]], edges[triTable[cubeindex, i + 1]], edges[triTable[cubeindex, i + 2]]);
+                }
+            }
+            // Recalculate normals because who knows what they were
+            RecalculateNormals();
+        }
+        public void RecalculateNormals()
+        {
+            // Loop over every vertex, calculate the face normal and use that
+            for (int i = 0; i < indices.Count; i += 3)
+            {
+                Vertex a = vertices[(int)indices[i]];
+                Vertex b = vertices[(int)indices[i + 1]];
+                Vertex c = vertices[(int)indices[i + 2]];
 
-				vertices[(int)indices[i]] = a;
-				vertices[(int)indices[i + 1]] = b;
-				vertices[(int)indices[i + 2]] = c;
-			}
-		}
+                Vector3 normal = Vector3.Cross(a.position - b.position, c.position - b.position).Normalized();
+                a.normal = normal;
+                b.normal = normal;
+                c.normal = normal;
+
+                vertices[(int)indices[i]] = a;
+                vertices[(int)indices[i + 1]] = b;
+                vertices[(int)indices[i + 2]] = c;
+            }
+        }
         /// <summary>
         /// Builds a mesh from the contents of the factory
         /// </summary>
