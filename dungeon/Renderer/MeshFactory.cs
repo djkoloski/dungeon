@@ -145,16 +145,11 @@ namespace dungeon.Renderer
                     Vector3 forwardLeft = (Vector3)(v + (IVector3.one + Direction.Vector[dirs[0]] + Direction.Vector[dirs[1]] + perp) / 2);
                     Vector3 forwardRight = (Vector3)(v + (IVector3.one + Direction.Vector[dirs[0]] + Direction.Vector[dirs[1]] - perp) / 2);
                     Vector3 normal = -(Vector3)Direction.Vector[dirs[0]];
-                    Vector3 sideNormal = (Vector3)Direction.Vector[dirs[1]];
+                    Vector3 sideNormal = (Vector3)perp;
 
                     AddQuadFromPoints(backLeft, backRight, frontRight, frontLeft, normal, GetTileColor(tile));
-                    //HACK
-                    if (dirs[0] == Direction.Down)
-                    {
-                        sideNormal *= -1;
-                    }
                     AddTriangleFromPoints(backLeft, forwardLeft, frontLeft, sideNormal, GetTileColor(tile));
-                    AddTriangleFromPoints(forwardRight, frontRight, backRight, sideNormal, GetTileColor(tile));
+                    AddTriangleFromPoints(forwardRight, frontRight, backRight, -sideNormal, GetTileColor(tile));
 
                     SplitWithQuadIfNecessary(generator, v, dirs[1], tile);
                 }

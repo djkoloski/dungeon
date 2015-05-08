@@ -23,7 +23,7 @@ namespace dungeon.Generator
             NORMAL, STAIRWAY
         }
         private static double HALLWAY_NORMAL_CHANCE = 10;//Chance for a straight hallway
-        private static double HALLWAY_STAIRWAY_CHANCE = 5;//Chance for a stairway
+        private static double HALLWAY_STAIRWAY_CHANCE = 10;//Chance for a stairway
 
         //Normal hallway properties
         private static int SAME_DIR_WEIGHT = 10;//Chances for a hallway to keep its direction

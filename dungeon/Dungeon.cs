@@ -10,7 +10,7 @@ namespace dungeon
 {
     public class Dungeon
     {
-        public static Random RAND = new Random();
+        public static Random RAND = new Random(2);
         // The tiles in the dungeon
         public Dictionary<IVector3, Tile> tiles;
 

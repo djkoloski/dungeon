@@ -14,6 +14,10 @@ namespace dungeon.Util
 
         public void Add(T t, double weight)
         {
+            if (weight == 0)
+            {
+                return;
+            }
             sum += weight;
             weights.Add(weight);
             contents.Add(t);
