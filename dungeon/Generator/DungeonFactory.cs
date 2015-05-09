@@ -13,29 +13,28 @@ namespace dungeon.Generator
     {
 
         //***** General maze properties *****
-        private static int MIN_SPACING = 2; //The minimum space around each hallway or room from anything else.
-        private static IVector3 LOWER_BOUND = IVector3.one * -1000000;// Lower bound on locations
-        private static IVector3 UPPER_BOUND = IVector3.one * 1000000;// Upper bound on locations
+        public static int MIN_SPACING = 2; //The minimum space around each hallway or room from anything else.
+        public static IVector3 LOWER_BOUND = IVector3.one * -1000000;// Lower bound on locations
+        public static IVector3 UPPER_BOUND = IVector3.one * 1000000;// Upper bound on locations
 
         //***** Hallway properties *****
         public enum HallwayType
         {
             NORMAL, STAIRWAY
         }
-        private static double HALLWAY_NORMAL_CHANCE = 10;//Chance for a straight hallway
-        private static double HALLWAY_STAIRWAY_CHANCE = 10;//Chance for a stairway
+        public static double HALLWAY_NORMAL_CHANCE = 10;//Chance for a straight hallway
+        public static double HALLWAY_STAIRWAY_CHANCE = 1;//Chance for a stairway
 
         //Normal hallway properties
-        private static int SAME_DIR_WEIGHT = 10;//Chances for a hallway to keep its direction
-        private static int DIFF_DIR_WEIGHT = 1;//Chances to change direction
-        private static bool ALLOW_VERTICAL_HALLWAYS = false;//Allow normal hallways to grow up and down just like horizontal ones?
+        public static double SAME_DIR_CHANCE = 0.9;//Chances for a hallway to keep its direction
+        public static bool ALLOW_VERTICAL_HALLWAYS = false;//Allow normal hallways to grow up and down just like horizontal ones?
 
-        private static int MIN_HALLWAY_LENGTH = 10;//The minimum length of a hallway before making a room
-        private static bool ALLOW_HALLWAY_MERGING = false;//Allow hallways from the same room to merge? (if true will break MIN_HALLWAY_LENGTH)
+        public static int MIN_HALLWAY_LENGTH = 10;//The minimum length of a hallway before making a room
+        public static bool ALLOW_HALLWAY_MERGING = false;//Allow hallways from the same room to merge? (if true will break MIN_HALLWAY_LENGTH) TODO
 
         //***** Backtracking properties *****
-        private static int FAKE_HALLWAY_MAX_LENGTH = (int)(MIN_HALLWAY_LENGTH * 1); //The maximum distance out a fake hallway will go.
-        private static double PORTION_FAKE_HALLWAYS_ON_HALLWAYS = 0.25;//How many fake hallways should be made from each real hallway joint, approximately.
+        public static int FAKE_HALLWAY_MAX_LENGTH = (int)(MIN_HALLWAY_LENGTH * 1); //The maximum distance out a fake hallway will go.
+        public static double PORTION_FAKE_HALLWAYS_ON_HALLWAYS = 0.25;//How many fake hallways should be made from each real hallway joint, approximately.
 
         DungeonTree tree;
 
@@ -102,11 +101,13 @@ namespace dungeon.Generator
                 }
                 //If our current joint is ready to plant the room, try to plant
                 if (currentJoint.distanceFromSource > MIN_HALLWAY_LENGTH)
+                {
                     if (DigRoomIfPossible(currentEdge.to, currentJoint))
                     {
                         currentEdge = null;
                         return true;
                     }
+                }
                 //Otherwise, dig a hallway forward if possible. If not, then find a new joint.
                 while ((currentJoint = DigHallwayFrom(currentJoint, currentEdge)) == null)
                 {
@@ -126,9 +127,7 @@ namespace dungeon.Generator
                     while (Dungeon.RAND.NextDouble() > PORTION_FAKE_HALLWAYS_ON_HALLWAYS || currentJoint == null)
                     {
                         if (backtrackIndex == backtrackJoints.Count())
-                        {
                             return false;
-                        }
                         currentJoint = backtrackJoints[backtrackIndex];
                         backtrackIndex++;
                     }
@@ -174,6 +173,11 @@ namespace dungeon.Generator
             {
                 int size = int.Parse(room.type.Substring(room.type.IndexOf(":") + 1));
                 return PlaceBlockIfPossible(room, joint, new IVector3(size, size, size));
+            }
+            if (room.type.StartsWith("rect:"))
+            {
+                string[] size = room.type.Substring(room.type.IndexOf(":") + 1).Split(',');
+                return PlaceBlockIfPossible(room, joint, new IVector3(int.Parse(size[0]), int.Parse(size[1]), int.Parse(size[2])));
             }
             return PlaceBlockIfPossible(room, joint, new IVector3(4, 4, 4));
         }
@@ -279,7 +283,8 @@ namespace dungeon.Generator
         {
             WeightedRandomList<HallwayType> ret = new WeightedRandomList<HallwayType>();
             ret.Add(HallwayType.NORMAL, HALLWAY_NORMAL_CHANCE);
-            ret.Add(HallwayType.STAIRWAY, HALLWAY_STAIRWAY_CHANCE);
+            if (!ALLOW_VERTICAL_HALLWAYS)
+                ret.Add(HallwayType.STAIRWAY, HALLWAY_STAIRWAY_CHANCE);
             return ret;
         }
 
@@ -367,7 +372,16 @@ namespace dungeon.Generator
             bool canAdd = false;
             for (int i = 0; i < 6; i++)
                 if (CanAddJoint(edge.from, new Joint(joint.GetExitLocation(), i)))
-                    canAdd = true;
+                {
+                    if (i == joint.direction)
+                    {
+                        if (SAME_DIR_CHANCE > 0)
+                            canAdd = true;
+                    }
+                    else if (SAME_DIR_CHANCE < 1)
+                        canAdd = true;
+
+                }
             if (!canAdd)
                 return null;
             dungeon.tiles[joint.location + Direction.Vector[joint.direction]] = new Tile(edge, false);
@@ -378,10 +392,10 @@ namespace dungeon.Generator
                 Joint newJoint = new Joint(joint.GetExitLocation(), i, joint.distanceFromSource + 1);
                 if (AddJointIfPossible(edge.from, newJoint))
                 {
-                    if (i == joint.direction && i % 3 != 1)
-                        newJoints.Add(newJoint, SAME_DIR_WEIGHT);
+                    if (i == joint.direction)
+                        newJoints.Add(newJoint, SAME_DIR_CHANCE);
                     else
-                        newJoints.Add(newJoint, DIFF_DIR_WEIGHT);
+                        newJoints.Add(newJoint, 1 - SAME_DIR_CHANCE);
                 }
             }
             return newJoints.Get();//Should never fail cause we verified there was a legal joint.
@@ -410,9 +424,6 @@ namespace dungeon.Generator
             if (!CanPlaceAt(joint.GetExitLocation() + Direction.Vector[joint.direction]))
                 if (!ALLOW_HALLWAY_MERGING)
                     return false;
-                else if (dungeon.tiles[joint.GetExitLocation() + Direction.Vector[joint.direction]].component != source)
-                    return true;
-
             for (int i = -MIN_SPACING; i <= MIN_SPACING; i++)
                 for (int j = -MIN_SPACING; j <= MIN_SPACING; j++)
                     for (int k = 0; k < MIN_SPACING; k++)
