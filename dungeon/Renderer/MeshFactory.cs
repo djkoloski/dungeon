@@ -107,9 +107,14 @@ namespace dungeon.Renderer
 
         private static Vector3 GetTileColor(Tile tile)
         {
+            //if (tile.isPartOfRoom)
+            //    return Vector3.One;
+            //return new Vector3(1, 0, 0);
+
+            //TREES!
             if (tile.isPartOfRoom)
-                return Vector3.One;
-            return new Vector3(1, 0, 0);
+                return new Vector3(0, 0.4f, 0);
+            return new Vector3(0.8f, 0.6f, 0.4f);
         }
         /// <summary>
         /// Renders the voxels of a dungeon into the mesh factory

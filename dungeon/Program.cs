@@ -15,18 +15,20 @@ namespace dungeon
         private static DungeonTree BuildTestTree()
         {
             DungeonTree tree = new DungeonTree();
-            int numRooms = 15;
-            int[] sizes = new int[numRooms];
-            sizes[0] = 16;
-            int split = 2;
-            for (int i = 1; i <= numRooms; i++)
-            {
-                if (i > 1)
-                    sizes[i - 1] = Math.Max(1, sizes[(i + (split - 2)) / split - 1] / 2);
-                tree.AddNode("c" + i, "cube:" + sizes[i - 1]);
-                if (i > 1)
-                    tree.AddEdge("c" + (i + (split - 2)) / split, "c" + i);
-            }
+            tree.AddNode("node", "cube:1");
+            tree.startDirection = 1;
+            //int numRooms = 15;
+            //int[] sizes = new int[numRooms];
+            //sizes[0] = 16;
+            //int split = 2;
+            //for (int i = 1; i <= numRooms; i++)
+            //{
+            //    if (i > 1)
+            //        sizes[i - 1] = Math.Max(1, sizes[(i + (split - 2)) / split - 1] / 2);
+            //    tree.AddNode("c" + i, "cube:" + sizes[i - 1]);
+            //    if (i > 1)
+            //        tree.AddEdge("c" + (i + (split - 2)) / split, "c" + i);
+            //}
             return tree;
         }
 
@@ -34,15 +36,77 @@ namespace dungeon
         {
             DungeonFactory.SAME_DIR_CHANCE = 1;
             DungeonFactory.HALLWAY_STAIRWAY_CHANCE = 0;
-            DungeonFactory.MIN_HALLWAY_LENGTH = 8;
+            DungeonFactory.MIN_HALLWAY_LENGTH = 20;
+            DungeonFactory.PORTION_FAKE_HALLWAYS_ON_HALLWAYS /= 3;
+            DungeonFactory.FAKE_HALLWAY_MAX_LENGTH *= 3;
             DungeonFactory.ALLOW_VERTICAL_HALLWAYS = true;
             DungeonTree tree = new DungeonTree();
-            tree.AddNode("center", "rect:20,4,4");
-            for (int i = 0; i < 12; i++)
+            tree.AddNode("center", "rect:40,4,4");
+            for (int i = 0; i < 16; i++)
             {
                 string name = "offshoot" + i;
                 tree.AddNode(name, "cube:" + 4);
                 tree.AddEdge("center", name);
+            }
+            return tree;
+        }
+
+        private static DungeonTree BuildDavidSpaceStation()
+        {
+            DungeonFactory.ALLOW_VERTICAL_HALLWAYS = true;
+            DungeonFactory.MIN_HALLWAY_LENGTH = 4;
+            DungeonFactory.PORTION_FAKE_HALLWAYS_ON_HALLWAYS = 0;
+            DungeonFactory.SAME_DIR_CHANCE = 1;
+            DungeonFactory.LOWER_BOUND = new IVector3(-10, -999, -10);
+            DungeonFactory.UPPER_BOUND = new IVector3(11, 999, 11);
+
+            int numCenterRooms = 4;
+
+            DungeonTree tree = new DungeonTree();
+            tree.startDirection = 1;
+            for (int i = 0; i < numCenterRooms; i++)
+            {
+                int s = 20 - i;
+                tree.AddNode("center" + i, "rect:1," + s + "," + s);
+                if (i > 0)
+                {
+                    tree.AddNode("center" + -i, "rect:1," + s + "," + s);
+                    tree.AddEdge("center" + (i - 1), "center" + i);
+                    tree.AddEdge("center" + -(i - 1), "center" + -i);
+                }
+            }
+            return tree;
+        }
+
+        private static DungeonTree BuildCity()
+        {
+            DungeonFactory.ALLOW_VERTICAL_HALLWAYS = true;
+            DungeonFactory.MIN_SPACING = 1;
+            DungeonFactory.MIN_HALLWAY_LENGTH = 0;
+            DungeonFactory.PORTION_FAKE_HALLWAYS_ON_HALLWAYS = 0;
+            DungeonFactory.SAME_DIR_CHANCE = 1;
+            DungeonFactory.LOWER_BOUND = new IVector3(-10, 0, -10);
+            DungeonFactory.UPPER_BOUND = new IVector3(10, 999, 10);
+
+            DungeonTree tree = new DungeonTree();
+            tree.AddNode("center", "rect:1,20,20");
+            tree.startDirection = 1;
+            for (int i = 0; i < 3; i++)
+            {
+                tree.AddNode("flatbuilding" + i, "rect:1,3,3");
+                tree.AddEdge("center", "flatbuilding" + i);
+            }
+            tree.AddNode("plaza", "rect:1,5,5");
+            tree.AddEdge("center", "plaza");
+            for (int i = 0; i < 5; i++)
+            {
+                tree.AddNode("plazabuilding" + i, "rect:" + (int)(Dungeon.RAND.Next() % 14) + ",1,1");
+                tree.AddEdge("plaza", "plazabuilding" + i);
+            }
+            for (int i = 0; i < 35; i++)
+            {
+                tree.AddNode("building" + i, "rect:" + (int)(Dungeon.RAND.Next() % 10) + ",1,1");
+                tree.AddEdge("center", "building" + i);
             }
             return tree;
         }
@@ -53,7 +117,7 @@ namespace dungeon
             DungeonFactory.SAME_DIR_CHANCE = 0.33;
             DungeonFactory.HALLWAY_STAIRWAY_CHANCE = 0;
             DungeonFactory.LOWER_BOUND = new IVector3(-7, 0, -7);
-            DungeonFactory.UPPER_BOUND = new IVector3(7, height, 7);
+            DungeonFactory.UPPER_BOUND = new IVector3(10, height, 10);
             //DungeonFactory.ALLOW_HALLWAY_MERGING = true;
             DungeonFactory.MIN_SPACING = 1;
             DungeonFactory.MIN_HALLWAY_LENGTH = 12;
@@ -69,6 +133,35 @@ namespace dungeon
             return tree;
         }
 
+
+        private static DungeonTree BuildTreehouse()
+        {
+            DungeonFactory.HALLWAY_STAIRWAY_CHANCE = 0;
+            DungeonFactory.ALLOW_VERTICAL_HALLWAYS = true;
+            DungeonFactory.MIN_SPACING = 1;
+            DungeonFactory.SAME_DIR_CHANCE = 0.33;
+            DungeonFactory.MIN_HALLWAY_LENGTH = 4;
+            DungeonFactory.MAX_HALLWAY_LENGTH = 16;
+            DungeonFactory.PORTION_FAKE_HALLWAYS_ON_HALLWAYS = 0;
+            DungeonTree tree = new DungeonTree();
+            tree.startDirection = 1;
+            int numRooms = 63;
+            int split = 2;
+            for (int i = 1; i <= numRooms; i++)
+            {
+                if (i == 1)
+                    tree.AddNode("c" + i, "rect:1,5,5").exitJointDirs = new List<int> { 1 };
+                else
+                {
+                    DungeonTreeNode node = tree.AddNode("c" + i, "rect:1,7,7");
+                    node.entryJointDirs = new List<int> { 4 };
+                    node.exitJointDirs = new List<int> { 1 };
+                    tree.AddEdge("c" + (i + (split - 2)) / split, "c" + i);
+                }
+            }
+            return tree;
+        }
+
         static void Main(string[] args)
         {
             bool immediate = false;
@@ -80,7 +173,7 @@ namespace dungeon
             }
             using (Window window = new Window(new IVector2(1024, 768)))
             {
-                DungeonTree tree = BuildOfficeBuilding();
+                DungeonTree tree = BuildTreehouse();
 
                 DungeonFactory dungeonFactory = new DungeonFactory(tree);
                 dungeonFactory.BeginGeneration();

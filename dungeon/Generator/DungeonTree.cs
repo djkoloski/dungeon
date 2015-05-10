@@ -8,6 +8,7 @@ namespace dungeon.Generator
 {
     public class DungeonTree
     {
+        public int startDirection = 0;
         public DungeonTreeNode root_;
         private Dictionary<string, DungeonTreeNode> nodes_ = new Dictionary<string, DungeonTreeNode>();
 
@@ -103,7 +104,7 @@ namespace dungeon.Generator
         }
 
         // TODO add more parameters to customize the node
-        public void AddNode(string name, string type)
+        public DungeonTreeNode AddNode(string name, string type)
         {
             if (nodes_.ContainsKey(name))
                 throw new System.InvalidOperationException("Attempted to add dungeon tree node that already existed");
@@ -114,6 +115,7 @@ namespace dungeon.Generator
                 root_ = node;
 
             nodes_[name] = node;
+            return node;
         }
         // TODO add more parameters to customize the edge
         public void AddEdge(string from, string to)
@@ -142,6 +144,8 @@ namespace dungeon.Generator
 
         public DungeonTreeEdge parent;
         public List<DungeonTreeEdge> children;
+        public List<int> entryJointDirs;
+        public List<int> exitJointDirs;
 
         public DungeonTreeNode(string name_, string type_)
         {

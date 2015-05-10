@@ -14,8 +14,8 @@ namespace dungeon.Generator
 
         //***** General maze properties *****
         public static int MIN_SPACING = 2; //The minimum space around each hallway or room from anything else.
-        public static IVector3 LOWER_BOUND = IVector3.one * -1000000;// Lower bound on locations
-        public static IVector3 UPPER_BOUND = IVector3.one * 1000000;// Upper bound on locations
+        public static IVector3 LOWER_BOUND = IVector3.one * -1000000;// Lower bound on locations (inclusive)
+        public static IVector3 UPPER_BOUND = IVector3.one * 1000000;// Upper bound on locations (exclusive)
 
         //***** Hallway properties *****
         public enum HallwayType
@@ -30,12 +30,14 @@ namespace dungeon.Generator
         public static bool ALLOW_VERTICAL_HALLWAYS = false;//Allow normal hallways to grow up and down just like horizontal ones?
 
         public static int MIN_HALLWAY_LENGTH = 10;//The minimum length of a hallway before making a room
+        public static int MAX_HALLWAY_LENGTH = 99999;//The max length of a hallway
         public static bool ALLOW_HALLWAY_MERGING = false;//Allow hallways from the same room to merge? (if true will break MIN_HALLWAY_LENGTH) TODO
 
         //***** Backtracking properties *****
         public static int FAKE_HALLWAY_MAX_LENGTH = (int)(MIN_HALLWAY_LENGTH * 1); //The maximum distance out a fake hallway will go.
         public static double PORTION_FAKE_HALLWAYS_ON_HALLWAYS = 0.25;//How many fake hallways should be made from each real hallway joint, approximately.
 
+        private static readonly List<int> allDirs = new List<int> { 0, 1, 2, 3, 4, 5, 6 };
         DungeonTree tree;
 
         public Dungeon dungeon;
@@ -60,13 +62,18 @@ namespace dungeon.Generator
         public void BeginGeneration()
         {
             dungeon = new Dungeon();
+
             joints = new Dictionary<DungeonTreeNode, List<Joint>>();
             edgesToDig = new Queue<DungeonTreeEdge>();
             foreach (DungeonTreeNode obj in tree.GetNodes())
             {
                 joints[obj] = new List<Joint>();
             }
-            DigRoomIfPossible(tree.root_, new Joint(IVector3.zero, 0, 0));
+            bool couldDigFirstRoom = DigRoomIfPossible(tree.root_, new Joint(IVector3.zero, tree.startDirection, 0));
+            if (!couldDigFirstRoom)
+            {
+                System.Console.WriteLine("Unable to start maze! Try relaxing starting constraints!");
+            }
             foreach (DungeonTreeEdge edge in tree.GetEdges())
             {
                 edgesToDig.Enqueue(edge);//lol screw efficiency
@@ -106,6 +113,17 @@ namespace dungeon.Generator
                     {
                         currentEdge = null;
                         return true;
+                    }
+                }
+                if (currentJoint.distanceFromSource > MAX_HALLWAY_LENGTH)
+                {
+                    TrimSearchTree(currentEdge, currentJoint.location);
+                    currentJoint = getAvailableJoint(currentEdge);
+                    if (currentJoint == null)
+                    {
+                        System.Console.WriteLine("Failed to make " + currentEdge);
+                        currentEdge = null;
+                        return false;
                     }
                 }
                 //Otherwise, dig a hallway forward if possible. If not, then find a new joint.
@@ -169,17 +187,30 @@ namespace dungeon.Generator
 
         private bool DigRoomIfPossible(DungeonTreeNode room, Joint joint)
         {
+            if (room.entryJointDirs != null && !room.entryJointDirs.Contains(Direction.Reverse[joint.direction]))
+                return false;
+            List<int> legalJointDirs = room.exitJointDirs;
+            if (legalJointDirs == null)
+            {
+                legalJointDirs = allDirs;
+            }
             if (room.type.StartsWith("cube:"))
             {
                 int size = int.Parse(room.type.Substring(room.type.IndexOf(":") + 1));
-                return PlaceBlockIfPossible(room, joint, new IVector3(size, size, size));
+                return PlaceBlockIfPossible(room, joint, new IVector3(size, size, size), legalJointDirs);
             }
             if (room.type.StartsWith("rect:"))
             {
                 string[] size = room.type.Substring(room.type.IndexOf(":") + 1).Split(',');
-                return PlaceBlockIfPossible(room, joint, new IVector3(int.Parse(size[0]), int.Parse(size[1]), int.Parse(size[2])));
+                return PlaceBlockIfPossible(room, joint, new IVector3(int.Parse(size[0]), int.Parse(size[1]), int.Parse(size[2])), legalJointDirs);
             }
             return PlaceBlockIfPossible(room, joint, new IVector3(4, 4, 4));
+        }
+
+
+        private bool PlaceBlockIfPossible(DungeonTreeNode room, Joint joint, IVector3 blockSize)
+        {
+            return PlaceBlockIfPossible(room, joint, blockSize, new List<int> { 0, 1, 2, 3, 4, 5, 6 });
         }
 
         /// <summary>
@@ -188,7 +219,7 @@ namespace dungeon.Generator
         /// <param name="room">The room node to build</param>
         /// <param name="joint"></param>
         /// <param name="blockSize"></param>
-        private bool PlaceBlockIfPossible(DungeonTreeNode room, Joint joint, IVector3 blockSize)
+        private bool PlaceBlockIfPossible(DungeonTreeNode room, Joint joint, IVector3 blockSize, List<int> legalDirs)
         {
             // Get the enumerations for each relevant direction (vector, tangent, bitangent)
             int vecdir = joint.direction;
@@ -200,24 +231,56 @@ namespace dungeon.Generator
             IVector3 tan = Direction.Vector[tandir];
             IVector3 btn = Direction.Vector[btndir];
 
+            int blockWidth = blockSize.y + MIN_SPACING * 2;
+            int blockHeight = blockSize.z + MIN_SPACING * 2;
+            if (!IsInBounds(joint.GetExitLocation()) || !IsInBounds(joint.GetExitLocation() + dir * (blockSize.x - 1)))
+            {
+                return false;
+            }
             //Figure out where it's legal to place this (have to try all the spots on the side of the block)
-            bool[,] linesBlocked = new bool[(blockSize.y + MIN_SPACING) * 2 - 1, (blockSize.z + MIN_SPACING) * 2 - 1];
-            for (int j = 0; j < linesBlocked.GetLength(0); j++)
-                for (int k = 0; k < linesBlocked.GetLength(1); k++)
-                    if (!linesBlocked[j, k])
-                        for (int i = 0; i < blockSize.x + MIN_SPACING * 2; i++)
-                            if (dungeon.tiles.ContainsKey(joint.GetExitLocation() + dir * i + tan * (j - MIN_SPACING) + btn * (k - MIN_SPACING)))
-                            {
-                                for (int dj = Math.Max(0, j - blockSize.y + 1 - MIN_SPACING); dj < Math.Min(linesBlocked.GetLength(0), j + blockSize.y + MIN_SPACING); dj++)
-                                    for (int dk = Math.Max(0, k - blockSize.z + 1 - MIN_SPACING); dk < Math.Min(linesBlocked.GetLength(1), k + blockSize.z + MIN_SPACING); dk++)
-                                        linesBlocked[dj, dk] = true;
-                                break;
-                            }
+            int[,] xBlockage = new int[(blockSize.y + MIN_SPACING) * 2 - 1, (blockSize.z + MIN_SPACING) * 2 - 1];
+            int[,] yBlockage = new int[(blockSize.y + MIN_SPACING) * 2 - 1, (blockSize.z + MIN_SPACING) * 2 - 1];
+            for (int j = 0; j < xBlockage.GetLength(0); j++)
+                for (int k = 0; k < xBlockage.GetLength(1); k++)
+                    //For each possible row range, check if there's a block.
+                    for (int i = 0; i < blockSize.x + MIN_SPACING * 2; i++)
+                        //If there is, start a blockage at that spot.
+                        if (dungeon.tiles.ContainsKey(joint.GetExitLocation() + dir * i + tan * (j - MIN_SPACING - blockSize.y + 1) + btn * (k - MIN_SPACING - blockSize.z + 1)))
+                        {
+                            for (int dk = 0; dk < blockHeight; dk++)
+                                if (k - dk >= 0)
+                                    xBlockage[j, k - dk] = blockWidth;
+                            for (int dj = 0; dj < blockWidth; dj++)
+                                if (j - dj >= 0)
+                                    yBlockage[j - dj, k] = blockHeight;
+                            break;
+                        }
+            //Propagate the blockage through the search space (also have blockage at ends of space)
+            for (int j = xBlockage.GetLength(0) - 1; j >= 0; j--)
+                for (int k = xBlockage.GetLength(1) - 1; k >= 0; k--)
+                {
+                    if (j < xBlockage.GetLength(0) - 1)
+                        xBlockage[j, k] = Math.Max(xBlockage[j, k], xBlockage[j + 1, k] - 1);
+                    xBlockage[j, k] = Math.Max(xBlockage[j, k], j - xBlockage.GetLength(0) + blockWidth);
+                    if (k < xBlockage.GetLength(1) - 1)
+                        yBlockage[j, k] = Math.Max(yBlockage[j, k], yBlockage[j, k + 1] - 1);
+                    yBlockage[j, k] = Math.Max(yBlockage[j, k], k - xBlockage.GetLength(1) + blockHeight);
+                }
+            //Find any legal spots and add them to the legal list
             List<IVector2> legalSpots = new List<IVector2>();
             for (int j = 0; j < blockSize.y; j++)
                 for (int k = 0; k < blockSize.z; k++)
-                    if (!linesBlocked[j + MIN_SPACING, k + MIN_SPACING])
-                        legalSpots.Add(new IVector2(j, k));
+                {
+                    int xloc = blockSize.y - 1 - j;
+                    int yloc = blockSize.z - 1 - k;
+                    if (xBlockage[j, k] == 0 && yBlockage[j, k] == 0
+                        && IsInBounds(joint.GetExitLocation() + tan * -xloc + btn * -yloc)
+                        && IsInBounds(joint.GetExitLocation() + tan * (blockSize.y - 1 - xloc) + btn * (blockSize.z - 1 - yloc))
+                        )
+                    {
+                        legalSpots.Add(new IVector2(xloc, yloc));
+                    }
+                }
 
             if (!legalSpots.Any())
                 return false;
@@ -240,25 +303,32 @@ namespace dungeon.Generator
                 IVector3 loc = joint.GetExitLocation() + dir * index.x + tan * index.y + btn * index.z - delta;
                 dungeon.tiles[loc] = new Tile(room, true);
             }
+            //Add all the joints
             for (int i = 0; i < blockSize.x; i++)
             {
                 for (int j = 0; j < blockSize.y; j++)
                 {
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j - delta, Direction.Reverse[btndir], 0));
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j + btn * (blockSize.z - 1) - delta, btndir, 0));
+                    if (legalDirs.Contains(Direction.Reverse[btndir]))
+                        AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j - delta, Direction.Reverse[btndir], 0));
+                    if (legalDirs.Contains(btndir))
+                        AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * j + btn * (blockSize.z - 1) - delta, btndir, 0));
                 }
                 for (int j = 0; j < blockSize.z; j++)
                 {
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + btn * j - delta, Direction.Reverse[tandir], 0));
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * (blockSize.y - 1) + btn * j - delta, tandir, 0));
+                    if (legalDirs.Contains(Direction.Reverse[tandir]))
+                        AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + btn * j - delta, Direction.Reverse[tandir], 0));
+                    if (legalDirs.Contains(tandir))
+                        AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * i + tan * (blockSize.y - 1) + btn * j - delta, tandir, 0));
                 }
             }
             for (int i = 0; i < blockSize.y; i++)
             {
                 for (int j = 0; j < blockSize.z; j++)
                 {
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + tan * i + btn * j - delta, Direction.Reverse[vecdir], 0));
-                    AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * (blockSize.x - 1) + tan * i + btn * j - delta, vecdir, 0));
+                    if (legalDirs.Contains(Direction.Reverse[vecdir]))
+                        AddJointIfPossible(room, new Joint(joint.GetExitLocation() + tan * i + btn * j - delta, Direction.Reverse[vecdir], 0));
+                    if (legalDirs.Contains(vecdir))
+                        AddJointIfPossible(room, new Joint(joint.GetExitLocation() + dir * (blockSize.x - 1) + tan * i + btn * j - delta, vecdir, 0));
                 }
             }
             return true;
@@ -434,7 +504,12 @@ namespace dungeon.Generator
 
         private bool CanPlaceAt(IVector3 location)
         {
-            return !dungeon.tiles.ContainsKey(location) && (location - LOWER_BOUND).inInterval(UPPER_BOUND - LOWER_BOUND);
+            return !dungeon.tiles.ContainsKey(location) && IsInBounds(location);
+        }
+
+        private bool IsInBounds(IVector3 location)
+        {
+            return (location - LOWER_BOUND).inInterval(UPPER_BOUND - LOWER_BOUND - IVector3.one);
         }
     }
 }
