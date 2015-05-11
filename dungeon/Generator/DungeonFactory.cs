@@ -98,7 +98,7 @@ namespace dungeon.Generator
                             noiseEdge = new DungeonTreeEdge(tree.root_, null);
                             foreach (List<Joint> jointList in joints.Values)
                                 foreach (Joint joint in jointList)
-                                    if (!dungeon.tiles[joint.location].isPartOfRoom)
+                                    if (dungeon.hasTile(joint.location) && !dungeon.getTile(joint.location).isPartOfRoom)
                                         backtrackJoints.Add(joint);
                             return true;
                         }
@@ -165,21 +165,23 @@ namespace dungeon.Generator
         {
             if (edge.to == null)
                 return;
+            if (dungeon.getTile(end).isPartOfRoom)
+                return;
             int neighbors = 0;
             for (int i = 0; i < 6; i++)
             {
                 IVector3 neighbor = end + Direction.Vector[i];
-                if (dungeon.tiles.ContainsKey(neighbor))
+                if (dungeon.hasTile(neighbor))
                     neighbors++;
             }
             if (neighbors < 2)
             {
-                dungeon.tiles.Remove(end);
+                dungeon.RemoveTile(end);
                 for (int i = 0; i < 6; i++)
                 {
                     joints[edge.from].Remove(new Joint(end, i));
                     IVector3 neighbor = end + Direction.Vector[i];
-                    if (dungeon.tiles.ContainsKey(neighbor) && dungeon.tiles[neighbor].isPartOfRoom == false)
+                    if (dungeon.hasTile(neighbor) && !dungeon.getTile(neighbor).isPartOfRoom)
                         TrimSearchTree(edge, neighbor);
                 }
             }
@@ -245,7 +247,7 @@ namespace dungeon.Generator
                     //For each possible row range, check if there's a block.
                     for (int i = 0; i < blockSize.x + MIN_SPACING * 2; i++)
                         //If there is, start a blockage at that spot.
-                        if (dungeon.tiles.ContainsKey(joint.GetExitLocation() + dir * i + tan * (j - MIN_SPACING - blockSize.y + 1) + btn * (k - MIN_SPACING - blockSize.z + 1)))
+                        if (dungeon.hasTile(joint.GetExitLocation() + dir * i + tan * (j - MIN_SPACING - blockSize.y + 1) + btn * (k - MIN_SPACING - blockSize.z + 1)))
                         {
                             for (int dk = 0; dk < blockHeight; dk++)
                                 if (k - dk >= 0)
@@ -293,7 +295,7 @@ namespace dungeon.Generator
             if (room.parent != null)
                 for (int i = 0; i < MIN_SPACING; i++)
                 {
-                    dungeon.tiles[joint.GetExitLocation()] = new Tile(room.parent, false);
+                    dungeon.AddTile(joint.GetExitLocation(), new Tile(room.parent, false));
                     joint = new Joint(joint.GetExitLocation(), joint.direction, joint.distanceFromSource + 1);
                 }
 
@@ -301,7 +303,7 @@ namespace dungeon.Generator
             foreach (IVector3 index in IVector3.Range(blockSize))
             {
                 IVector3 loc = joint.GetExitLocation() + dir * index.x + tan * index.y + btn * index.z - delta;
-                dungeon.tiles[loc] = new Tile(room, true);
+                dungeon.AddTile(loc, new Tile(room, true));
             }
             //Add all the joints
             for (int i = 0; i < blockSize.x; i++)
@@ -402,18 +404,18 @@ namespace dungeon.Generator
                 return null;
             }
             //Dig the first outwards tile
-            dungeon.tiles[joint.GetExitLocation()] = new Tile(edge, false);
-            dungeon.tiles[joint.GetExitLocation()].roomType = HallwayType.STAIRWAY.ToString();
+            dungeon.AddTile(joint.GetExitLocation(), new Tile(edge, false));
+            dungeon.getTile(joint.GetExitLocation()).roomType = HallwayType.STAIRWAY.ToString();
 
             bool pickUpIfBothAvailable = Dungeon.RAND.NextDouble() < 0.5;
             //Dig the upwards tile if necessary
             if (canDigUp && !canDigDown || (canDigUp && canDigDown && pickUpIfBothAvailable))
             {
-                dungeon.tiles[upJoint.GetExitLocation()] = new Tile(edge, false);
-                dungeon.tiles[upJoint.GetExitLocation()].roomType = HallwayType.STAIRWAY.ToString();
-                dungeon.tiles[upJoint.GetExitLocation()].roomInfo[Tile.DIR_KEY] = new int[] { Direction.Down, joint.direction };
+                dungeon.AddTile(upJoint.GetExitLocation(), new Tile(edge, false));
+                dungeon.getTile(upJoint.GetExitLocation()).roomType = HallwayType.STAIRWAY.ToString();
+                dungeon.getTile(upJoint.GetExitLocation()).roomInfo[Tile.DIR_KEY] = new int[] { Direction.Down, joint.direction };
 
-                dungeon.tiles[joint.GetExitLocation()].roomInfo[Tile.DIR_KEY] = new int[] { Direction.Up, Direction.Reverse[joint.direction] };
+                dungeon.getTile(joint.GetExitLocation()).roomInfo[Tile.DIR_KEY] = new int[] { Direction.Up, Direction.Reverse[joint.direction] };
 
                 AddJointIfPossible(edge.from, upExitJoint);
                 return upExitJoint;
@@ -421,11 +423,11 @@ namespace dungeon.Generator
             //Dig the downwards tile if necessary
             if (canDigDown && !canDigUp || (canDigUp && canDigDown && !pickUpIfBothAvailable))
             {
-                dungeon.tiles[downJoint.GetExitLocation()] = new Tile(edge, false);
-                dungeon.tiles[downJoint.GetExitLocation()].roomType = HallwayType.STAIRWAY.ToString();
-                dungeon.tiles[downJoint.GetExitLocation()].roomInfo[Tile.DIR_KEY] = new int[] { Direction.Up, joint.direction };
+                dungeon.AddTile(downJoint.GetExitLocation(), new Tile(edge, false));
+                dungeon.getTile(downJoint.GetExitLocation()).roomType = HallwayType.STAIRWAY.ToString();
+                dungeon.getTile(downJoint.GetExitLocation()).roomInfo[Tile.DIR_KEY] = new int[] { Direction.Up, joint.direction };
 
-                dungeon.tiles[joint.GetExitLocation()].roomInfo[Tile.DIR_KEY] = new int[] { Direction.Down, Direction.Reverse[joint.direction] };
+                dungeon.getTile(joint.GetExitLocation()).roomInfo[Tile.DIR_KEY] = new int[] { Direction.Down, Direction.Reverse[joint.direction] };
 
                 AddJointIfPossible(edge.from, downExitJoint);
                 return downExitJoint;
@@ -454,7 +456,7 @@ namespace dungeon.Generator
                 }
             if (!canAdd)
                 return null;
-            dungeon.tiles[joint.location + Direction.Vector[joint.direction]] = new Tile(edge, false);
+            dungeon.AddTile(joint.location + Direction.Vector[joint.direction], new Tile(edge, false));
             WeightedRandomList<Joint> newJoints = new WeightedRandomList<Joint>();
             //Add the immediate exit spot, then (FOR NOW) add exit joints to all its neighbors
             for (int i = 0; i < 6; i++)
@@ -504,7 +506,7 @@ namespace dungeon.Generator
 
         private bool CanPlaceAt(IVector3 location)
         {
-            return !dungeon.tiles.ContainsKey(location) && IsInBounds(location);
+            return !dungeon.hasTile(location) && IsInBounds(location);
         }
 
         private bool IsInBounds(IVector3 location)

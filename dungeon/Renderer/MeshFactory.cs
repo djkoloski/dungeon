@@ -24,12 +24,17 @@ namespace dungeon.Renderer
         private List<UInt32> indices;
 
         /// <summary>
+        /// The indices of each quad (represented by joints)
+        /// </summary>
+        private Dictionary<Joint, int> quadLocations;
+        private Dictionary<int, Joint> quadLocationReverseLookup;
+
+        /// <summary>
         /// Constructs a new mesh factory
         /// </summary>
         public MeshFactory()
         {
-            vertices = new List<Vertex>();
-            indices = new List<UInt32>();
+            Clear();
         }
         /// <summary>
         /// Clears the contents of the mesh factory
@@ -38,6 +43,8 @@ namespace dungeon.Renderer
         {
             vertices = new List<Vertex>();
             indices = new List<UInt32>();
+            quadLocations = new Dictionary<Joint, int>();
+            quadLocationReverseLookup = new Dictionary<int, Joint>();
         }
         /// <summary>
         /// Adds a quad at a corner with a given direction and color
@@ -51,6 +58,8 @@ namespace dungeon.Renderer
             IVector3 center = corner + Direction.Center[direction];
             IVector3 normal = Direction.Vector[direction];
             int first = vertices.Count;
+            quadLocations[new Joint(corner, direction)] = indices.Count();
+            quadLocationReverseLookup[indices.Count()] = new Joint(corner, direction);
 
             // Add four vertices
             AddVertex((Vector3)center, (Vector3)normal, color);
@@ -107,14 +116,14 @@ namespace dungeon.Renderer
 
         private static Vector3 GetTileColor(Tile tile)
         {
-            //if (tile.isPartOfRoom)
-            //    return Vector3.One;
-            //return new Vector3(1, 0, 0);
+            if (tile.isPartOfRoom)
+                return Vector3.One;
+            return new Vector3(1, 0, 0);
 
             //TREES!
-            if (tile.isPartOfRoom)
-                return new Vector3(0, 0.4f, 0);
-            return new Vector3(0.8f, 0.6f, 0.4f);
+            //if (tile.isPartOfRoom)
+            //    return new Vector3(0, 0.4f, 0);
+            //return new Vector3(0.8f, 0.6f, 0.4f);
         }
         /// <summary>
         /// Renders the voxels of a dungeon into the mesh factory
@@ -122,17 +131,28 @@ namespace dungeon.Renderer
         /// <param name="dungeon">The dungeon to render</param>
         public void RenderDungeonVoxel(DungeonFactory generator)
         {
-            Clear();
+            //Clear();
 
-            // Get the tiles map
-            Dictionary<IVector3, Tile> tiles = generator.dungeon.tiles;
+            //If any tiles were removed, seal the missing spots with quads
+            foreach (IVector3 removed in generator.dungeon.removedTiles)
+            {
+                for (int d = Direction.Begin; d != Direction.End; ++d)
+                {
+                    IVector3 neighbor = removed + Direction.Vector[d];
+                    if (generator.dungeon.hasTile(neighbor))
+                        SplitWithQuadIfNecessary(generator, neighbor, Direction.Reverse[d], generator.dungeon.getTile(neighbor));
+                    else
+                        RemoveQuadIfExists(new Joint(removed, d));
+                }
+            }
+            generator.dungeon.removedTiles = new HashSet<IVector3>();
 
             // Loop over all the tiles in the dungeon
-            foreach (KeyValuePair<IVector3, Tile> pair in tiles)
+            foreach (IVector3 tileLoc in generator.dungeon.addedTiles)
             {
                 // Get the coordinate and tile
-                IVector3 v = pair.Key;
-                Tile tile = pair.Value;
+                IVector3 v = tileLoc;
+                Tile tile = generator.dungeon.getTile(tileLoc);
 
                 if (tile.roomInfo.ContainsKey(Tile.DIR_KEY))
                 {
@@ -162,22 +182,61 @@ namespace dungeon.Renderer
                 {
                     // Loop over all the directions from the position
                     for (int d = Direction.Begin; d != Direction.End; ++d)
+                    {
                         SplitWithQuadIfNecessary(generator, v, d, tile);
+                    }
                 }
             }
+            generator.dungeon.addedTiles = new HashSet<IVector3>();
         }
 
-        private void SplitWithQuadIfNecessary(DungeonFactory generator, IVector3 loc, int direction, Tile tile)
+        private void RemoveQuadIfExists(Joint joint)
+        {
+            if (!quadLocations.ContainsKey(joint))
+                return;
+
+            //Overwrite the quad with the last quad in the list
+            int indexListIndex = quadLocations[joint];
+            for (int i = 0; i < 6; i++)
+            {
+                indices[indexListIndex + i] = indices[indices.Count() - 6 + i];
+            }
+            quadLocations.Remove(joint);
+            quadLocationReverseLookup.Remove(indexListIndex);
+
+            int oldMax = indices.Count() - 6;
+            //Move the last quad information over
+            if (quadLocationReverseLookup.ContainsKey(oldMax))
+            {
+                Joint jointToMove = quadLocationReverseLookup[oldMax];
+                quadLocations[jointToMove] = indexListIndex;
+                quadLocationReverseLookup[indexListIndex] = jointToMove;
+                quadLocationReverseLookup.Remove(oldMax);
+            }
+            for (int i = 0; i < 6; i++)
+                indices.RemoveAt(indices.Count() - 1);
+        }
+
+        private bool SplitWithQuadIfNecessary(DungeonFactory generator, IVector3 loc, int direction, Tile tile)
         {
             IVector3 neighbor = loc + Direction.Vector[direction];
             // Get the neighboring voxel
-            if (generator.dungeon.tiles.ContainsKey(neighbor))
+            if (generator.dungeon.hasTile(neighbor))
             {
-                Dictionary<object, object> roomInfo = generator.dungeon.tiles[neighbor].roomInfo;
+                Dictionary<object, object> roomInfo = generator.dungeon.getTile(neighbor).roomInfo;
+                //If our neighbor is a tile with a stairway, then he may as well not be a tile at all!
                 if (!roomInfo.ContainsKey(Tile.DIR_KEY) || ((int[])roomInfo[Tile.DIR_KEY])[1] == Direction.Reverse[direction])
-                    return;
+                {
+                    RemoveQuadIfExists(new Joint(neighbor, Direction.Reverse[direction]));
+                    return false;
+                }
+            }
+            if (tile == null)
+            {
+                return false;
             }
             AddDirectionalQuad(loc, direction, GetTileColor(tile));
+            return true;
         }
         public void AddTriangleFromPoints(Vector3 a, Vector3 b, Vector3 c, Vector3 normal, Vector3 color)
         {
@@ -535,7 +594,7 @@ namespace dungeon.Renderer
 
             // Make a new hashset for the cell candidates
             HashSet<IVector3> cells = new HashSet<IVector3>();
-            Dictionary<IVector3, Tile> tiles = generator.dungeon.tiles;
+            Dictionary<IVector3, Tile> tiles = generator.dungeon.getTilesSeparately();
 
             // Add all positions that need to be meshed across
             foreach (KeyValuePair<IVector3, Tile> tile in tiles)

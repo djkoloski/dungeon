@@ -12,11 +12,43 @@ namespace dungeon
     {
         public static Random RAND = new Random(2);
         // The tiles in the dungeon
-        public Dictionary<IVector3, Tile> tiles;
+        private Dictionary<IVector3, Tile> tiles;
 
-		public Dungeon()
-		{
-			tiles = new Dictionary<IVector3,Tile>();
-		}
+        public HashSet<IVector3> removedTiles = new HashSet<IVector3>();
+        public HashSet<IVector3> addedTiles = new HashSet<IVector3>();
+
+        public Dungeon()
+        {
+            tiles = new Dictionary<IVector3, Tile>();
+        }
+
+        public Dictionary<IVector3, Tile> getTilesSeparately()
+        {
+            return tiles;
+        }
+
+        public Tile getTile(IVector3 loc)
+        {
+            return tiles[loc];
+        }
+
+        public bool hasTile(IVector3 loc)
+        {
+            return tiles.ContainsKey(loc);
+        }
+
+        public void AddTile(IVector3 loc, Tile tile)
+        {
+            tiles[loc] = tile;
+            addedTiles.Add(loc);
+            removedTiles.Remove(loc);
+        }
+
+        public void RemoveTile(IVector3 loc)
+        {
+            tiles.Remove(loc);
+            removedTiles.Add(loc);
+            addedTiles.Remove(loc);
+        }
     }
 }

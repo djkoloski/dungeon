@@ -44,8 +44,8 @@ namespace dungeon.Generator
             {
                 return false;
             }
-            Joint Joint = (Joint)obj;
-            return Joint.location.Equals(location) && Joint.direction.Equals(direction);
+            Joint joint = (Joint)obj;
+            return joint.location.Equals(location) && joint.direction == direction;
         }
 
         public override int GetHashCode()

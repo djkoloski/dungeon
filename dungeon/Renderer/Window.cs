@@ -31,9 +31,9 @@ namespace dungeon.Renderer
         private bool spaceDownLastFrame;
         private bool kDownLastFrame;
         private bool rDownLastFrame;
-		private bool mDownLastFrame;
+        private bool mDownLastFrame;
         private bool animate;
-		private bool meshingAlgorithm;
+        private bool meshingAlgorithm;
 
         private float lastFPSCheck;
         private int frames;
@@ -101,13 +101,18 @@ namespace dungeon.Renderer
             GL.ClearColor(0, 0, 0, 1);
         }
 
+        MeshFactory factory;
+
         public void RebuildMesh()
         {
-            MeshFactory factory = new MeshFactory();
-			if (meshingAlgorithm)
-				factory.RenderDungeonMarchingCubes(generator);
-			else
-				factory.RenderDungeonVoxel(generator);
+            if (factory == null)
+            {
+                factory = new MeshFactory();
+            }
+            if (meshingAlgorithm)
+                factory.RenderDungeonMarchingCubes(generator);
+            else
+                factory.RenderDungeonVoxel(generator);
 
             if (mesh_ != null)
                 mesh_.Clear();
@@ -205,18 +210,18 @@ namespace dungeon.Renderer
             else
                 spaceDownLastFrame = false;
 
-			if (state[OpenTK.Input.Key.M])
-			{
-				if (!mDownLastFrame)
-				{
-					meshingAlgorithm = !meshingAlgorithm;
-					if (!animate)
-						RebuildMesh();
-				}
-				mDownLastFrame = true;
-			}
-			else
-				mDownLastFrame = false;
+            if (state[OpenTK.Input.Key.M])
+            {
+                if (!mDownLastFrame)
+                {
+                    meshingAlgorithm = !meshingAlgorithm;
+                    if (!animate)
+                        RebuildMesh();
+                }
+                mDownLastFrame = true;
+            }
+            else
+                mDownLastFrame = false;
 
             if (animate)
                 Step();

@@ -12,23 +12,75 @@ namespace dungeon
 {
     class Program
     {
-        private static DungeonTree BuildTestTree()
+        private static DungeonTree BuildBinaryTree()
         {
             DungeonTree tree = new DungeonTree();
-            tree.AddNode("node", "cube:1");
-            tree.startDirection = 1;
-            //int numRooms = 15;
-            //int[] sizes = new int[numRooms];
-            //sizes[0] = 16;
-            //int split = 2;
-            //for (int i = 1; i <= numRooms; i++)
-            //{
-            //    if (i > 1)
-            //        sizes[i - 1] = Math.Max(1, sizes[(i + (split - 2)) / split - 1] / 2);
-            //    tree.AddNode("c" + i, "cube:" + sizes[i - 1]);
-            //    if (i > 1)
-            //        tree.AddEdge("c" + (i + (split - 2)) / split, "c" + i);
-            //}
+            int numRooms = 63;
+            int[] sizes = new int[numRooms];
+            sizes[0] = 16;
+            int split = 2;
+            for (int i = 1; i <= numRooms; i++)
+            {
+                if (i > 1)
+                    sizes[i - 1] = Math.Max(1, sizes[(i + (split - 2)) / split - 1] / 2);
+                tree.AddNode("c" + i, "cube:" + sizes[i - 1]);
+                if (i > 1)
+                    tree.AddEdge("c" + (i + (split - 2)) / split, "c" + i);
+            }
+            return tree;
+        }
+
+        private static DungeonTree BuildTypicalTree()
+        {
+            DungeonTree tree = new DungeonTree();
+            for (int i = 0; i < 10; i++)
+            {
+                tree.AddNode("center" + i, "cube:" + (20 - i));
+                if (i > 0)
+                {
+                    tree.AddEdge("center" + (i - 1), "center" + i);
+                }
+                int numSubRooms = Dungeon.RAND.Next() % 5;
+                for (int j = 0; j < numSubRooms; j++)
+                {
+                    tree.AddNode("offshoot" + i + "," + j, "cube:" + (Dungeon.RAND.Next() % 4 + 2));
+                    tree.AddEdge("center" + i, "offshoot" + i + "," + j);
+                }
+            }
+            int numRooms = 63;
+            int[] sizes = new int[numRooms];
+            sizes[0] = 16;
+            int split = 2;
+            for (int i = 1; i <= numRooms; i++)
+            {
+                if (i > 1)
+                    sizes[i - 1] = Math.Max(1, sizes[(i + (split - 2)) / split - 1] / 2);
+                tree.AddNode("c" + i, "cube:" + sizes[i - 1]);
+                if (i > 1)
+                    tree.AddEdge("c" + (i + (split - 2)) / split, "c" + i);
+            }
+            return tree;
+        }
+
+        private static DungeonTree BuildFlatDungeon()
+        {
+            List<int> horizOnly = new List<int> { 0, 2, 3, 5 };
+            DungeonFactory.HALLWAY_STAIRWAY_CHANCE = 0;
+            DungeonFactory.MIN_HALLWAY_LENGTH = 20;
+            DungeonFactory.ALLOW_VERTICAL_HALLWAYS = false;
+            DungeonTree tree = new DungeonTree();
+            for (int i = 0; i < 500; i++)
+            {
+                string name = "offshoot" + i;
+                DungeonTreeNode node = tree.AddNode(name, "cube:1");
+                node.entryJointDirs = horizOnly;
+                node.exitJointDirs = horizOnly;
+                if (i > 0)
+                {
+                    string parent = "offshoot" + (Dungeon.RAND.Next() % i);
+                    tree.AddEdge(parent, name);
+                }
+            }
             return tree;
         }
 
